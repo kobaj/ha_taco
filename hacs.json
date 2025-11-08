@@ -1,0 +1,5 @@
+{
+  "name": "Taco Home Assistant",
+  "content_in_root": true,
+  "homeassistant": "2025.11.1"
+}
