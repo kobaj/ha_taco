@@ -41,7 +41,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
     device_password = entry.data.get(CONF_TACO_DEVICE_PASSWORD)
     assert device_password
 
-    connectable = True
+    connectable = False
     ble_device = bluetooth.async_ble_device_from_address(
         hass, address.upper(), connectable=connectable
     )
@@ -52,7 +52,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
             translation_placeholders={"address": address},
         )
 
-    data_coordinator = BleDataUpdateCoordinator(hass, ble_device, taco_gatt)
+    # TODO if this works, remove the ble_device creation above...
+    data_coordinator = BleDataUpdateCoordinator(hass, taco_gatt)
     update_coordinator = ActiveBluetoothDataUpdateCoordinator(
         hass,
         _LOGGER,
@@ -85,4 +86,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
 
 async def async_unload_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    # TODO unload our ble_data_update_coordinator.

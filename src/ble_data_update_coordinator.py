@@ -55,6 +55,17 @@ async def _setup_notification_subscriptions(
 
     return await client.start_notify(characteristic.uuid, handle_notification)
 
+@asynccontextmanager
+async def _make_client(ble_device: BLEDevice) -> BleakClient:
+    """Generator for making a client. MUST be called as a `with` statement."""
+
+    try:
+        client = await establish_connection(
+            BleakClientWithServiceCache, ble_device, ble_device.address
+        )
+        yield client
+    finally:
+        await client.disconnect()
 
 class BleDataUpdateCoordinator:
     """Utility methods for a ActiveBluetoothDataUpdateCoordinator."""
@@ -62,7 +73,6 @@ class BleDataUpdateCoordinator:
     def __init__(
         self,
         hass: HomeAssistant,
-        ble_device: BLEDevice,
         gatt: Gatt,
         scan_interval: int | None = None,
     ):
@@ -71,7 +81,6 @@ class BleDataUpdateCoordinator:
         self._lock = asyncio.Lock()
 
         self._hass = hass
-        self._ble_device = ble_device
         self._gatt = gatt
         self._scan_interval = DEFAULT_SCAN_INTERVAL
         if scan_interval:
@@ -84,25 +93,10 @@ class BleDataUpdateCoordinator:
         async with self._lock:
             self._results[result.uuid] = result
 
-    @asynccontextmanager
-    async def _make_client(self) -> BleakClient:
-        """Generator for making a client. MUST be called as a `with` statement."""
-
-        # Home Assistant recommends we actually use the bledevice in the service_info
-        # And an ActiveBluetoothDataUpdateCoordinator. But I can't find any good examples.
-        # https://github.com/home-assistant/core/blob/ac5316e3aca487519c3a1d5f78b15e38a85f8c0a/homeassistant/components/bluetooth/active_update_coordinator.py#L25
-        try:
-            client = await establish_connection(
-                BleakClientWithServiceCache, self._ble_device, self._ble_device.address
-            )
-            yield client
-        finally:
-            await client.disconnect()
-
     @callback
-    async def setup(self) -> None:
+    async def setup(self, service_info: BluetoothServiceInfoBleak) -> None:
         """First time setup."""
-        async with self._make_client() as client:
+        async with _make_client(service_info.device) as client:
             try:
                 notification_gatt_characteristics = [
                     characteristic
@@ -124,22 +118,21 @@ class BleDataUpdateCoordinator:
                 # await self.poll(is_first_poll=True)
             except:
                 _LOGGER.exception(
-                    "Failed to setup notifications for device %s", self._ble_device.address
+                    "Failed to setup notifications for device %s", service_info.device.address
                 )
                 raise
 
 
     @callback
-    async def poll(self, is_first_poll: bool=False) -> None:
+    async def poll(self, service_info: BluetoothServiceInfoBleak, is_first_poll: bool=False) -> None:
         """Poll the device."""
 
         if self._DONT_COMMIT_THIS_VARIABLE:
             is_first_poll = True
             self._DONT_COMMIT_THIS_VARIABLE = False
-            await self.setup()
+            await self.setup(service_info)
 
-
-        async with self._make_client() as client:
+        async with _make_client(service_info.device) as client:
             try:
                 poll_gatt_characteristics = [
                     characteristic
@@ -159,7 +152,7 @@ class BleDataUpdateCoordinator:
 
                 await asyncio.gather(*poll_gatt_calls)
             except:
-                _LOGGER.exception("Failed to poll device %s", self._ble_device.address)
+                _LOGGER.exception("Failed to poll device %s", service_info.device.address)
                 raise
 
             async with self._lock:
