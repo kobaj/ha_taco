@@ -1,0 +1,16 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "scp",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c", // read commands from string
+        "scp -r \"$(pwd)/*\" root@192.168.1.24:/root/config/custom_components/ha_taco/"
+      ]
+    }
+  ]
+}
