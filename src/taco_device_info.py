@@ -2,15 +2,15 @@ from homeassistant.helpers.device_registry import DeviceInfo
 
 from homeassistant.helpers import device_registry
 
-from .callable_sensor import CallableSensorDescription
+from .callable_entity import CallableDescription
 from .taco_config_entry import TacoConfigEntry
 
 
-def create_sensor_id(
-    entry: TacoConfigEntry, sensor_description: CallableSensorDescription
+def create_entity_id(
+    entry: TacoConfigEntry, callable_description: CallableDescription
 ) -> str:
     """Create a unique id for a sensor."""
-    return f"{entry.unique_id}_{sensor_description.entity_description.key}"
+    return f"{entry.unique_id}_{callable_description.entity_description.key}"
 
 
 def create_device_info(domain: str, entry: TacoConfigEntry) -> DeviceInfo:

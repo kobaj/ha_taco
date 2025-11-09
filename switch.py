@@ -6,9 +6,9 @@ import logging
 from collections.abc import Callable
 
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntityDescription,
+from homeassistant.components.switch import (
+    SwitchDeviceClass,
+    SwitchEntityDescription,
 )
 
 from homeassistant.core import HomeAssistant
@@ -23,7 +23,13 @@ from .src.taco_gatt_read_transform import (
     ZONE_STATUS,
     ZONE_COUNT,
 )
-from .src.callable_entity import CallableBinarySensor, CallableDescription
+from .src.callable_entity import (
+    CallableSwitch,
+    CallableDescription,
+    TURN_OFF,
+    TURN_ON,
+    Action,
+)
 
 from .const import DOMAIN
 
@@ -31,47 +37,36 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-def _make_pump_sensor(index: int) -> CallableDescription:
+def _write_fn(activity: str) -> list[Action]:
+    if activity == TURN_ON:
+        return []  # TODO
+    if activity == TURN_OFF:
+        return []  # TODO
+
+    raise ValueError(f"Cannot handle activity of type {activity} as a switch.")
+
+
+def _make_pump_switch(index: int) -> CallableDescription:
     """Make a pump sensor, index is 1 based."""
 
     return CallableDescription(
-        entity_description=BinarySensorEntityDescription(
-            key=f"ZONE_{index}",
-            device_class=BinarySensorDeviceClass.RUNNING,
+        entity_description=SwitchEntityDescription(
+            key=f"FORCE_ON_ZONE_{index}", device_class=SwitchDeviceClass.SWITCH
         ),
         exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
-        value_fn=lambda data: data[ZONE_STATUS].get_zone(index),
+        value_fn=lambda data: False,  # TODO
+        write_fn=_write_fn,
     )
 
 
-def _make_thermostat_sensor(index: int) -> CallableDescription:
-    """Make a pump sensor, index is 1 based."""
-
-    return CallableDescription(
-        entity_description=BinarySensorEntityDescription(
-            key=f"THERMOSTAT_{index}",
-            device_class=None,  # Deliberately none
-        ),
-        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
-        value_fn=lambda data: data[THERMOSTAT_INPUT_STATUS].get_zone(index),
-    )
-
-
-_SENSORS: tuple[CallableDescription, ...] = [
+_SWITCHES: tuple[CallableDescription, ...] = [
     # Pumps
-    _make_pump_sensor(1),
-    _make_pump_sensor(2),
-    _make_pump_sensor(3),
-    _make_pump_sensor(4),
-    _make_pump_sensor(5),
-    _make_pump_sensor(6),
-    # Thermostats
-    _make_thermostat_sensor(1),
-    _make_thermostat_sensor(2),
-    _make_thermostat_sensor(3),
-    _make_thermostat_sensor(4),
-    _make_thermostat_sensor(5),
-    _make_thermostat_sensor(6),
+    _make_pump_switch(1),
+    _make_pump_switch(2),
+    _make_pump_switch(3),
+    _make_pump_switch(4),
+    _make_pump_switch(5),
+    _make_pump_switch(6),
 ]
 
 
@@ -80,8 +75,8 @@ async def async_setup_entry(
     entry: TacoConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up sensor based on a config entry."""
-    _LOGGER.debug("Setting up Taco binary sensors: %s", entry)
+    """Set up switch based on a config entry."""
+    _LOGGER.debug("Setting up Taco switches: %s", entry)
 
     taco_runtime_data = entry.runtime_data
     update_coordinator = taco_runtime_data.update_coordinator
@@ -94,13 +89,13 @@ async def async_setup_entry(
     # for the data, or throw ConfigEntryNotReady exceptions.
 
     async_add_entities(
-        CallableBinarySensor(
+        CallableSwitch(
             update_coordinator,
             description,
             name=description.entity_description.key,
             unique_id=create_entity_id(entry, description),
             device_info=create_device_info(DOMAIN, entry),
         )
-        for description in _SENSORS
+        for description in _SWITCHES
         if description.exists_fn(data)
     )
