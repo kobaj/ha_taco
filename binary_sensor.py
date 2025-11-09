@@ -31,8 +31,8 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-def _make_pump_sensor(index: int) -> CallableDescription:
-    """Make a pump sensor, index is 1 based."""
+def _make_zone_sensor(index: int) -> CallableDescription:
+    """Make a zone sensor, index is 1 based."""
 
     return CallableDescription(
         entity_description=BinarySensorEntityDescription(
@@ -45,7 +45,7 @@ def _make_pump_sensor(index: int) -> CallableDescription:
 
 
 def _make_thermostat_sensor(index: int) -> CallableDescription:
-    """Make a pump sensor, index is 1 based."""
+    """Make a zone sensor, index is 1 based."""
 
     return CallableDescription(
         entity_description=BinarySensorEntityDescription(
@@ -59,12 +59,12 @@ def _make_thermostat_sensor(index: int) -> CallableDescription:
 
 _SENSORS: tuple[CallableDescription, ...] = [
     # Pumps
-    _make_pump_sensor(1),
-    _make_pump_sensor(2),
-    _make_pump_sensor(3),
-    _make_pump_sensor(4),
-    _make_pump_sensor(5),
-    _make_pump_sensor(6),
+    _make_zone_sensor(1),
+    _make_zone_sensor(2),
+    _make_zone_sensor(3),
+    _make_zone_sensor(4),
+    _make_zone_sensor(5),
+    _make_zone_sensor(6),
     # Thermostats
     _make_thermostat_sensor(1),
     _make_thermostat_sensor(2),
