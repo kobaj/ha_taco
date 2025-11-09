@@ -11,8 +11,6 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 
-from homeassistant.exceptions import ConfigEntryNotReady
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import (
     AddConfigEntryEntitiesCallback,
@@ -20,7 +18,11 @@ from homeassistant.helpers.entity_platform import (
 
 from .src.taco_config_entry import TacoConfigEntry
 from .src.taco_device_info import create_device_info, create_sensor_id
-from .src.taco_gatt_transform import THERMOSTAT_INPUT_STATUS, ZONE_STATUS, ZONE_COUNT
+from .src.taco_gatt_read_transform import (
+    THERMOSTAT_INPUT_STATUS,
+    ZONE_STATUS,
+    ZONE_COUNT,
+)
 from .src.callable_sensor import CallableBinarySensor, CallableSensorDescription
 
 from .const import DOMAIN

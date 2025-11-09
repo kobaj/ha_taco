@@ -5,7 +5,7 @@ from logging import Logger, getLogger
 
 from .src.gatt import Gatt, Service, Characteristic, Property, ReadAction
 from .src.ble_service_info_decrypter import BleServiceInfoDecrypter
-from .src.taco_gatt_transform import (
+from .src.taco_gatt_read_transform import (
     read_network_thermostat_input_status_transform,
     read_network_zone_count_transform,
     read_network_zone_status_transform,
