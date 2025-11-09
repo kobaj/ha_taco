@@ -10,7 +10,11 @@ from .ble_data_update_coordinator import BleDataUpdateCoordinator
 
 @dataclass
 class TacoRuntimeData:
-    # TODO probably don't need either of these...
+    """Holds everything our entries need for runtime."""
+
+    address: str
+    password: str | None
+
     update_coordinator: DataUpdateCoordinator
     data_coordinator: BleDataUpdateCoordinator
 

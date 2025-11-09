@@ -16,6 +16,7 @@ from bleak_retry_connector import close_stale_connections_by_address
 
 from .src.ble_data_update_coordinator import BleDataUpdateCoordinator
 from .src.taco_config_entry import TacoConfigEntry, TacoRuntimeData
+from .src.ble_config_flow import BLE_CONF_DEVICE_ADDRESS
 
 from .const import DOMAIN, taco_gatt
 from .config_flow import CONF_TACO_DEVICE_PASSWORD
@@ -24,25 +25,21 @@ from .config_flow import CONF_TACO_DEVICE_PASSWORD
 _LOGGER = logging.getLogger(__name__)
 
 # TODO support buttons too!
-PLATFORMS: list[Platform] = []
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Set up device from a config entry."""
-    _LOGGER.debug("Setting up an entry: %s", entry)
+    _LOGGER.debug("Setting up a Taco!: %s", entry)
 
     hass.data.setdefault(DOMAIN, {})
 
-    address = entry.unique_id
+    address = entry.data.get(BLE_CONF_DEVICE_ADDRESS)
     assert address
     await close_stale_connections_by_address(address)
 
-    device_password = entry.data.get(CONF_TACO_DEVICE_PASSWORD)
-    assert device_password
-
-    connectable = False
     ble_device = bluetooth.async_ble_device_from_address(
-        hass, address.upper(), connectable=connectable
+        hass, address.upper(), connectable=True
     )
     if not ble_device:
         raise ConfigEntryNotReady(
@@ -59,14 +56,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         update_method=data_coordinator.poll,
         setup_method=data_coordinator.setup,
         update_interval=data_coordinator.update_interval,
+        always_update=False,
     )
+
+    # Need to get data now because some of the entry setup will use it.
     await update_coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = TacoRuntimeData(
+        address=address,
+        password=entry.data.get(CONF_TACO_DEVICE_PASSWORD),
         data_coordinator=data_coordinator,
         update_coordinator=update_coordinator,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Trigger a force refresh for all the entrys that just subscribed.
+    await data_coordinator.force_data_update()
 
     return True
 

@@ -32,6 +32,7 @@ from .ble_service_info_decrypter import BleServiceInfoDecrypter
 _LOGGER = logging.getLogger(__name__)
 
 BLE_CONF_DEVICE_NAME = "ble_config_device_name"
+BLE_CONF_DEVICE_ADDRESS = "ble_config_device_address"
 
 
 @dataclass
@@ -40,6 +41,7 @@ class AdditionalInfo:
 
     text_selector_key: str
     text_selector_type: TextSelectorType = TextSelectorType.TEXT
+    is_required: bool = True
 
 
 class BleConfigFlow(config_entries.ConfigFlow):
@@ -137,6 +139,7 @@ class BleConfigFlow(config_entries.ConfigFlow):
         assert self._discovery_info
 
         title = self._decrypter.get_device_name(self._discovery_info)
+        address = self._discovery_info.device.address
         placeholders = {"name": title}
         self.context["title_placeholders"] = placeholders
         return self.async_show_form(
@@ -147,11 +150,22 @@ class BleConfigFlow(config_entries.ConfigFlow):
                     vol.Required(BLE_CONF_DEVICE_NAME, default=title): TextSelector(
                         TextSelectorConfig(read_only=True)
                     ),
+                    vol.Required(
+                        BLE_CONF_DEVICE_ADDRESS, default=address
+                    ): TextSelector(TextSelectorConfig(read_only=True)),
                     **{
                         vol.Required(ai.text_selector_key): TextSelector(
                             TextSelectorConfig(type=ai.text_selector_type)
                         )
                         for ai in self._additional_info
+                        if ai.is_required
+                    },
+                    **{
+                        vol.Optional(ai.text_selector_key): TextSelector(
+                            TextSelectorConfig(type=ai.text_selector_type)
+                        )
+                        for ai in self._additional_info
+                        if not ai.is_required
                     },
                 }
             ),

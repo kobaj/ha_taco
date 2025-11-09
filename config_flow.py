@@ -26,6 +26,7 @@ class TacoConfigFlow(BleConfigFlow, domain=DOMAIN):
                 AdditionalInfo(
                     text_selector_key=CONF_TACO_DEVICE_PASSWORD,
                     text_selector_type=TextSelectorType.PASSWORD,
+                    is_required=False,
                 )
             ],
         )

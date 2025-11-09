@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import asyncio
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import Callable
 from dataclasses import dataclass
 
@@ -17,6 +17,7 @@ from bleak_retry_connector import establish_connection, BleakClientWithServiceCa
 
 from homeassistant.core import HomeAssistant, callback
 
+
 from .gatt import Gatt, Characteristic, Property, ReadAction
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,22 +26,21 @@ DEFAULT_SCAN_INTERVAL = 5  # seconds
 
 
 @dataclass
-class PollGattResult:
-    """See GATT Characteristics in the BLE specification."""
+class GattReadResult:
+    """The transformed result of a gatt characteristic read."""
 
-    uuid: str
-    result: any
+    key: str
+    value: any
 
 
 async def _read_gatt(
     client: BleakClient, characteristic: Characteristic, handler: Callable
-) -> PollGattResult:
+) -> GattReadResult:
     """Send the client a read gatt request for the characteristic."""
 
     data = await client.read_gatt_char(characteristic.uuid)
     transformed_result = characteristic.read_transform(data)
-    gatt_result = PollGattResult(characteristic.uuid, transformed_result)
-    await handler(gatt_result)
+    await handler(transformed_result)
 
 
 async def _setup_notification_subscriptions(
@@ -50,14 +50,17 @@ async def _setup_notification_subscriptions(
 
     async def handle_notification(_: any, data: bytearray):
         transformed_result = characteristic.read_transform(data)
-        gatt_result = PollGattResult(characteristic.uuid, transformed_result)
-        await handler(gatt_result)
+        await handler(transformed_result)
 
     await client.start_notify(characteristic.uuid, handle_notification)
 
 
 class BleDataUpdateCoordinator:
-    """Utility methods for a ActiveBluetoothDataUpdateCoordinator."""
+    """Utility methods for a DataUpdateCoordinator."""
+
+    # Should probably attempt to use an ActiveBluetoothDataUpdateCoordinator
+    # scheme in the future instead of the raw DataUpdateCoordinator. Since
+    # it contains a bluetooth device already for us and a few other niceties.
 
     def __init__(
         self,
@@ -77,11 +80,20 @@ class BleDataUpdateCoordinator:
 
         self.update_interval = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
 
-    async def _consume_result(self, result: PollGattResult) -> None:
+    async def _consume_result(self, result: GattReadResult) -> None:
         """Add new incoming data to our current results."""
 
+        if not result.key or not result.value:
+            _LOGGER.warning(
+                "Rejected non GattReadResult, make sure to use a gatt transform: %s",
+                result,
+            )
+            return
+
+        _LOGGER.debug("Updating gatt results with: %s", result)
+
         async with self._results_lock:
-            self._results[result.uuid] = result
+            self._results[result.key] = result.value
 
     async def _make_client(self) -> BleakClient:
         async with self._client_lock:
@@ -104,6 +116,8 @@ class BleDataUpdateCoordinator:
     @callback
     async def setup(self) -> None:
         """Initialize a client and establish subscriptions."""
+        await self.force_data_update()
+
         client = await self._make_client()
         try:
             notification_gatt_characteristics = [
@@ -130,9 +144,9 @@ class BleDataUpdateCoordinator:
             raise
 
     @callback
-    async def poll(self, is_first_poll: bool = False):
+    async def poll(self, is_first_poll: bool = False) -> None:
         """Poll the device."""
-        _LOGGER.debug("poll request!")
+        _LOGGER.debug("Polling for new data for device %s", self._ble_device.address)
 
         client = await self._make_client()
         try:
@@ -161,8 +175,11 @@ class BleDataUpdateCoordinator:
             raise
 
         async with self._results_lock:
-            _LOGGER.debug("read gatt results: %s", self._results)
-            return self._results
+            return self._results.copy()
+
+    async def force_data_update(self) -> None:
+        """This will force a new timestamp so that home assistant thinks there is new data."""
+        await self._consume_result(GattReadResult("timestamp", datetime.now()))
 
     async def shutdown(self) -> None:
         """Stop all clients and shutdown bluetooth connections."""
