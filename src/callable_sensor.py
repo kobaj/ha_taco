@@ -90,7 +90,7 @@ class CallableBinarySensor(_BaseCallableSensor, BinarySensorEntity):
     """Binary Sensor implementation"""
 
     @property
-    def is_on(self) -> bool:
+    def is_on(self) -> bool | None:
         """Return True if the sensor is on."""
 
         if self._attr_native_value:

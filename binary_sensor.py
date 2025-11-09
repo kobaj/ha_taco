@@ -28,55 +28,48 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def make_pump_sensor(index: int) -> CallableSensorDescription:
+    """Make a pump sensor, index is 1 based."""
+
+    return CallableSensorDescription(
+        entity_description=BinarySensorEntityDescription(
+            key=f"ZONE_{index}",
+            device_class=BinarySensorDeviceClass.RUNNING,
+        ),
+        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
+        value_fn=lambda data: data[ZONE_STATUS].get_zone(index),
+    )
+
+
+def make_thermostat_sensor(index: int) -> CallableSensorDescription:
+    """Make a pump sensor, index is 1 based."""
+
+    return CallableSensorDescription(
+        entity_description=BinarySensorEntityDescription(
+            key=f"THERMOSTAT_{index}",
+            device_class=None,  # Deliberately none
+        ),
+        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
+        value_fn=lambda data: data[THERMOSTAT_INPUT_STATUS].get_zone(index),
+    )
+
+
 _SENSORS: tuple[CallableSensorDescription, ...] = [
-    CallableSensorDescription(
-        entity_description=BinarySensorEntityDescription(
-            key="ZONE1",
-            device_class=BinarySensorDeviceClass.RUNNING,
-        ),
-        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= 1,
-        value_fn=lambda data: data[ZONE_STATUS].zone1,
-    ),
-    CallableSensorDescription(
-        entity_description=BinarySensorEntityDescription(
-            key="ZONE2",
-            device_class=BinarySensorDeviceClass.RUNNING,
-        ),
-        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= 2,
-        value_fn=lambda data: data[ZONE_STATUS].zone2,
-    ),
-    CallableSensorDescription(
-        entity_description=BinarySensorEntityDescription(
-            key="ZONE3",
-            device_class=BinarySensorDeviceClass.RUNNING,
-        ),
-        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= 3,
-        value_fn=lambda data: data[ZONE_STATUS].zone3,
-    ),
-    CallableSensorDescription(
-        entity_description=BinarySensorEntityDescription(
-            key="ZONE4",
-            device_class=BinarySensorDeviceClass.RUNNING,
-        ),
-        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= 4,
-        value_fn=lambda data: data[ZONE_STATUS].zon4,
-    ),
-    CallableSensorDescription(
-        entity_description=BinarySensorEntityDescription(
-            key="ZONE5",
-            device_class=BinarySensorDeviceClass.RUNNING,
-        ),
-        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= 5,
-        value_fn=lambda data: data[ZONE_STATUS].zone5,
-    ),
-    CallableSensorDescription(
-        entity_description=BinarySensorEntityDescription(
-            key="ZONE6",
-            device_class=BinarySensorDeviceClass.RUNNING,
-        ),
-        exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= 6,
-        value_fn=lambda data: data[ZONE_STATUS].zone6,
-    ),
+    # Pumps
+    make_pump_sensor(1),
+    make_pump_sensor(2),
+    make_pump_sensor(3),
+    make_pump_sensor(4),
+    make_pump_sensor(5),
+    make_pump_sensor(6),
+    # Thermostats
+    make_thermostat_sensor(1),
+    make_thermostat_sensor(2),
+    make_thermostat_sensor(3),
+    make_thermostat_sensor(4),
+    make_thermostat_sensor(5),
+    make_thermostat_sensor(6),
 ]
 
 

@@ -118,8 +118,8 @@ THERMOSTAT_INPUT_STATUS = "thermostatInputStatus"
 
 
 @dataclass
-class ThermostatInfo:
-    """All of the information about the thermostats."""
+class ZoneInfo:
+    """All of the information about the zones"""
 
     # True means on.
     zone1: bool
@@ -129,10 +129,27 @@ class ThermostatInfo:
     zone5: bool
     zone6: bool
 
+    def get_zone(self, index: int) -> bool | None:
+        """Returns the zone value at index, 1 based."""
+
+        if index == 1:
+            return self.zone1
+        if index == 2:
+            return self.zone2
+        if index == 3:
+            return self.zone3
+        if index == 4:
+            return self.zone4
+        if index == 5:
+            return self.zone5
+        if index == 6:
+            return self.zone6
+        return None
+
 
 def read_network_thermostat_input_status_transform(
     bytez: bytearray,
-) -> ThermostatInfo:
+) -> ZoneInfo:
     """Converts a bytearray to an array where each index is a zone, true means on."""
     _assert_bytearray_len(bytez, 20)
 
@@ -146,24 +163,11 @@ def read_network_thermostat_input_status_transform(
 
     return GattReadResult(
         THERMOSTAT_INPUT_STATUS,
-        ThermostatInfo(zone1, zone2, zone3, zone4, zone5, zone6),
+        ZoneInfo(zone1, zone2, zone3, zone4, zone5, zone6),
     )
 
 
 ZONE_STATUS = "zoneStatus"
-
-
-@dataclass
-class ZoneInfo:
-    """All of the information about the zones"""
-
-    # True means on.
-    zone1: bool
-    zone2: bool
-    zone3: bool
-    zone4: bool
-    zone5: bool
-    zone6: bool
 
 
 def read_network_zone_status_transform(bytez: bytearray) -> ZoneInfo:
