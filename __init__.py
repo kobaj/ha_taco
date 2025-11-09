@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.bluetooth.active_update_coordinator import (
-    ActiveBluetoothDataUpdateCoordinator,
-)
+
 from homeassistant.const import Platform
-from bluetooth_sensor_state_data import BluetoothData
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
+
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from bleak_retry_connector import close_stale_connections_by_address
 
@@ -26,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # TODO support buttons too!
 PLATFORMS: list[Platform] = []
-DEFAULT_SCAN_INTERVAL = 5 # seconds
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Set up device from a config entry."""
@@ -52,39 +51,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
             translation_placeholders={"address": address},
         )
 
-    # TODO if this works, remove the ble_device creation above...
-    data_coordinator = BleDataUpdateCoordinator(hass, taco_gatt)
-    update_coordinator = ActiveBluetoothDataUpdateCoordinator(
+    data_coordinator = BleDataUpdateCoordinator(hass, ble_device, taco_gatt)
+    update_coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
-        address=address,
-        needs_poll_method= lambda unused_1, unused_2: True, # You know, should fix this...
-        poll_method=data_coordinator.poll,
-        mode=bluetooth.BluetoothScanningMode.ACTIVE,
-        connectable=connectable,
+        name=DOMAIN,
+        update_method=data_coordinator.poll,
+        setup_method=data_coordinator.setup,
+        update_interval=data_coordinator.update_interval,
     )
-    # update_coordinator = DataUpdateCoordinator(
-    #     hass,
-    #     _LOGGER,
-    #     name=DOMAIN,
-    #     update_method=data_coordinator.poll,
-    #     setup_method=data_coordinator.setup,
-    #     update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
-    # )
-    # await update_coordinator.async_config_entry_first_refresh()
+    await update_coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = TacoRuntimeData(
         data_coordinator=data_coordinator,
         update_coordinator=update_coordinator,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(
-        update_coordinator.async_start()
-    )  # only start after all platforms have had a chance to subscribe
+
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Unload a config entry."""
     await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    # TODO unload our ble_data_update_coordinator.
+    await entry.runtime_data.data_coordinator.shutdown()
+
+    return True

@@ -15,23 +15,26 @@ ZONE5 = "ZONE5"
 ZONE6 = "ZONE6"
 
 ZONE_BY_BYTE = {
-   1 : ZONE1,
-   2 : ZONE2,
-   4 : ZONE3,
-   8 : ZONE4,
-   16: ZONE5,
-   32: ZONE6,
+    1: ZONE1,
+    2: ZONE2,
+    4: ZONE3,
+    8: ZONE4,
+    16: ZONE5,
+    32: ZONE6,
 }
 
-BYTE_BY_ZONE = { v: k for k, v in ZONE_BY_BYTE.items() }
+BYTE_BY_ZONE = {v: k for k, v in ZONE_BY_BYTE.items()}
 
 
 def _is_byte_match(byte, target) -> bool:
     return (byte & target) == target
 
+
 def _assert_bytearray_len(bytez: bytearray, length: int):
     if len(bytez) != length:
-        raise ValueError(f"Invalid byte array, expected length of {length}, got: {bytes}")
+        raise ValueError(
+            f"Invalid byte array, expected length of {length}, got: {bytes}"
+        )
 
 
 def write_password_transform(password: str) -> bytearray:
@@ -91,6 +94,7 @@ def read_product_id_transform(bytez: bytearray) -> TacoProductInfo:
         revision=bytez[4],
     )
 
+
 def read_network_zone_count_transform(bytez: bytearray) -> int:
     """Converts a bytearray to an int."""
     _assert_bytearray_len(bytez, 20)
@@ -98,19 +102,21 @@ def read_network_zone_count_transform(bytez: bytearray) -> int:
     # Not sure why they needed 20 bytes for this...
     return bytez[19]
 
+
 def read_network_thermostat_input_status_transform(bytez: bytearray) -> [int]:
     """Converts a bytearray to an array where each index is a zone, true means on."""
     _assert_bytearray_len(bytez, 20)
 
     byte = bytez[19]
-    zone1 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE1])
-    zone2 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE2])
-    zone3 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE3])
-    zone4 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE4])
-    zone5 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE5])
-    zone6 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE6])
+    zone1 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE1])
+    zone2 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE2])
+    zone3 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE3])
+    zone4 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE4])
+    zone5 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE5])
+    zone6 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE6])
 
     return [zone1, zone2, zone3, zone4, zone5, zone6]
+
 
 def read_network_zone_status_transform(bytez: bytearray) -> [int]:
     """Converts a bytearray to an array where each index is a zone, true means on."""
@@ -118,11 +124,11 @@ def read_network_zone_status_transform(bytez: bytearray) -> [int]:
     _assert_bytearray_len(bytez, 20)
 
     byte = bytez[19]
-    zone1 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE1])
-    zone2 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE2])
-    zone3 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE3])
-    zone4 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE4])
-    zone5 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE5])
-    zone6 = _is_byte_match(byte, ZONE_BY_BYTE[ZONE6])
+    zone1 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE1])
+    zone2 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE2])
+    zone3 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE3])
+    zone4 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE4])
+    zone5 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE5])
+    zone6 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE6])
 
     return [zone1, zone2, zone3, zone4, zone5, zone6]
