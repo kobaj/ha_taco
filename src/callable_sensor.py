@@ -67,15 +67,18 @@ class _BaseCallableSensor(CoordinatorEntity):
         # by the coordinator rather than the sensor or ble device because
         # we are using the CoordinatorEntity. Might rework this...
 
-        _LOGGER.warning("Handle coordinator update...")
+        _LOGGER.warning("Handle coordinator update for sensor %s...", self.name)
 
         if not self.coordinator.data:
-            _LOGGER.warning("No data received from coordinator")
+            _LOGGER.warning(
+                "No data received from coordinator for sensor %s", self.name
+            )
             return
 
         try:
             self._attr_native_value = self.value_fn(self.coordinator.data)
         except:
+            self._attr_native_value = None
             _LOGGER.exception(
                 "Failed to update sensor %s with data %s",
                 self.name,

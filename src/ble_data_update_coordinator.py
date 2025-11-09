@@ -105,6 +105,7 @@ class BleDataUpdateCoordinator:
                         self._ble_device.address,
                     )
                 except:
+                    self.force_data_clear()
                     _LOGGER.exception(
                         "Failed to setup ble client for device %s",
                         self._ble_device.address,
@@ -178,11 +179,17 @@ class BleDataUpdateCoordinator:
             return self._results.copy()
 
     async def force_data_update(self) -> None:
-        """This will force a new timestamp so that home assistant thinks there is new data."""
+        """Set a timestamp so that home assistant thinks there is new data."""
         await self._consume_result(GattReadResult("timestamp", datetime.now()))
+
+    async def force_data_clear(self) -> None:
+        """Remove all result data."""
+        async with self._results_lock:
+            self._results = {}
 
     async def shutdown(self) -> None:
         """Stop all clients and shutdown bluetooth connections."""
         async with self._client_lock:
             if self._client and self._client.is_connected:
                 self._client.disconnect()
+        self.force_data_clear()
