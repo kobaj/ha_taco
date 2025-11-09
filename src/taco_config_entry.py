@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.config_entries import ConfigEntry
 
 from .ble_data_update_coordinator import BleDataUpdateCoordinator
+from .callable_entity import TwoWayDataUpdateCoordinator
 
 
 @dataclass
@@ -15,8 +15,8 @@ class TacoRuntimeData:
     address: str
     password: str | None
 
-    update_coordinator: DataUpdateCoordinator
-    data_coordinator: BleDataUpdateCoordinator
+    update_coordinator: TwoWayDataUpdateCoordinator
+    _data_coordinator: BleDataUpdateCoordinator
 
 
 type TacoConfigEntry = ConfigEntry[TacoRuntimeData]

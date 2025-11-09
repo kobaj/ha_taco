@@ -10,10 +10,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from bleak_retry_connector import close_stale_connections_by_address
 
+from .src.callable_entity import CallableTwoWayDataUpdateCoordinator
 from .src.ble_data_update_coordinator import BleDataUpdateCoordinator
 from .src.taco_config_entry import TacoConfigEntry, TacoRuntimeData
 from .src.ble_config_flow import BLE_CONF_DEVICE_ADDRESS
@@ -24,8 +24,8 @@ from .config_flow import CONF_TACO_DEVICE_PASSWORD
 
 _LOGGER = logging.getLogger(__name__)
 
-# TODO support buttons too!
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR]
+
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SWITCH]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
@@ -49,12 +49,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         )
 
     data_coordinator = BleDataUpdateCoordinator(hass, ble_device, taco_gatt)
-    update_coordinator = DataUpdateCoordinator(
+    update_coordinator = CallableTwoWayDataUpdateCoordinator(
         hass,
         _LOGGER,
         name=DOMAIN,
         update_method=data_coordinator.poll,
         setup_method=data_coordinator.setup,
+        write_method=data_coordinator.write,
         update_interval=data_coordinator.update_interval,
         always_update=False,
     )
@@ -65,8 +66,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
     entry.runtime_data = TacoRuntimeData(
         address=address,
         password=entry.data.get(CONF_TACO_DEVICE_PASSWORD),
-        data_coordinator=data_coordinator,
         update_coordinator=update_coordinator,
+        _data_coordinator=data_coordinator,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

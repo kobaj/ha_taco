@@ -178,6 +178,10 @@ class BleDataUpdateCoordinator:
         async with self._results_lock:
             return self._results.copy()
 
+    @callback
+    async def write(self) -> None:
+        _LOGGER.debug("Writing data to device %s", self._ble_device.address)
+
     async def force_data_update(self) -> None:
         """Set a timestamp so that home assistant thinks there is new data."""
         await self._consume_result(GattReadResult("timestamp", datetime.now()))

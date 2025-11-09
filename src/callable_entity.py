@@ -1,8 +1,8 @@
-"""Actual sensors."""
+"""Entities (sensors, switches, etc) that have callbacks."""
 
 import logging
 
-from collections.abc import Callable
+from collections.abc import Callable, Awaitable
 from dataclasses import dataclass, field
 
 from typing import Callable, TypeAlias, Protocol
@@ -19,6 +19,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.entity import EntityDescription
 
@@ -44,15 +45,38 @@ class CallableDescription:
     write_fn: WriteValue | None = None
 
 
-class TwoWayDataUpdateCoordinator(Protocol, DataUpdateCoordinator):
+class TwoWayDataUpdateCoordinator(DataUpdateCoordinator):
     """A coordinator that can not only read, but also write!."""
 
-    @property
-    def data(self) -> Data:
-        """The data read out of the coordinator."""
+    # Ideally this would be a Protocol, but since python doesn't
+    # yet have intersection types, well, here we are...
+
+    async def write(self, *args: any, **kwargs: any) -> None:
+        """The data to write to the coordinator."""
+        raise NotImplementedError("Write method not implemented.")
+
+
+class CallableTwoWayDataUpdateCoordinator(DataUpdateCoordinator):
+    """A coordinator that can not only read, but also write!."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        logger: logging.Logger,
+        *,
+        write_method: Callable[[], Awaitable[None]] | None = None,
+        **kwargs
+    ):
+        super().__init__(hass, logger, **kwargs)
+        self._write_method = write_method
 
     async def write(self, actions: list[Action]) -> None:
         """The data to write to the coordinator."""
+
+        if self._write_method is None:
+            raise NotImplementedError("Write method callback not implemented")
+
+        self._write_method(actions)
 
 
 class _BaseCallableCoordinatorEntity(CoordinatorEntity):
