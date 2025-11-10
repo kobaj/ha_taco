@@ -67,7 +67,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         setup_method=data_coordinator.setup,
         write_method=data_coordinator.write,
         update_interval=data_coordinator.update_interval,
-        always_update=False,
+        always_update=True,
     )
     entry.runtime_data = TacoRuntimeData(
         address=address,

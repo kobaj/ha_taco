@@ -126,7 +126,7 @@ class BleDataUpdateCoordinator:
         async with self._results_lock:
             self._results[result.key] = result.value
 
-    async def _is_connected(self) -> bool:
+    def _is_connected(self) -> bool:
         return self._client and self._client.is_connected
 
     async def _make_client(self) -> BleakClient:

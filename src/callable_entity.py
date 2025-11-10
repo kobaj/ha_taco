@@ -98,6 +98,11 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
         super().__init__(update_coordinator)
         self._update_coordinator = update_coordinator
 
+        if not update_coordinator.always_update:
+            raise ValueError(
+                "Data Update Coordinator must have always update set to True."
+            )
+
         self.entity_description = callable_description.entity_description
         self.value_fn = callable_description.value_fn
         self.write_fn = callable_description.write_fn
@@ -128,7 +133,12 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
             return
 
         try:
-            self._attr_native_value = self.value_fn(self._update_coordinator.data)
+            previous_value = getattr(self, "_attr_native_value", None)
+            next_value = self.value_fn(self._update_coordinator.data)
+            if previous_value == next_value:
+                return
+            _LOGGER.debug("Setting entity %s to %s", self.name, next_value)
+            self._attr_native_value = next_value
         except:
             self._attr_native_value = None
             _LOGGER.exception(
