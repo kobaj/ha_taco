@@ -19,7 +19,8 @@ from .gatt import Gatt, Characteristic, Property, ReadAction
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_SCAN_INTERVAL = 5  # seconds
+DEFAULT_AFTER_WRITE_INTERVAL = timedelta(seconds=30)
+DEFAULT_UPDATE_INTERVAL = timedelta(seconds=5)
 
 
 class _GattReadResult(Protocol):
@@ -101,10 +102,9 @@ class BleDataUpdateCoordinator:
         self._client_lock = asyncio.Lock()
         self._client = None
 
-        self._successful_write_lock = asyncio.Lock()
-        self._successful_write = False
+        self._successful_write_time = datetime.now()
 
-        self.update_interval = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
+        self.update_interval = DEFAULT_UPDATE_INTERVAL
 
     async def _consume_result(self, result: _GattReadResult) -> None:
         """Add new incoming data to our current results."""
@@ -183,14 +183,11 @@ class BleDataUpdateCoordinator:
                 for characteristic in service.characteristics
                 if Property.READ in characteristic.properties
                 and (
-                    (characteristic.read_action == ReadAction.INDEX and is_first_poll)
-                    or (
-                        characteristic.read_action == ReadAction.SUBSCRIBE
-                        and is_first_poll
-                    )
+                    (characteristic.read_action != ReadAction.NOOP and is_first_poll)
                     or (
                         characteristic.read_action == ReadAction.AFTER_WRITE
-                        and (self._successful_write or is_first_poll)
+                        and (datetime.now() - self._successful_write_time)
+                        < DEFAULT_AFTER_WRITE_INTERVAL
                     )
                     or (characteristic.read_action == ReadAction.POLL)
                 )
@@ -204,9 +201,6 @@ class BleDataUpdateCoordinator:
         except:
             _LOGGER.exception("Failed to poll device %s", self._ble_device.address)
             raise
-
-        async with self._successful_write_lock:
-            self._successful_write = False
 
         async with self._results_lock:
             return self._results.copy()
@@ -245,8 +239,7 @@ class BleDataUpdateCoordinator:
             raise
 
         if successful_write:
-            async with self._successful_write_lock:
-                self._successful_write = True
+            self._successful_write_time = datetime.now()
 
     async def force_data_update(self) -> None:
         """Set a timestamp so that home assistant thinks there is new data."""
