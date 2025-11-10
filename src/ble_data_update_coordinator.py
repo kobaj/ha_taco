@@ -20,6 +20,7 @@ from .gatt import Gatt, Characteristic, Property, ReadAction
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_AFTER_WRITE_INTERVAL = timedelta(seconds=30)
+DEFAULT_AFTER_NOTIFICATION_INTERVAL = timedelta(seconds=30)
 DEFAULT_UPDATE_INTERVAL = timedelta(seconds=5)
 
 
@@ -74,7 +75,7 @@ async def _setup_notification_subscriptions(
 
     async def handle_notification(_: any, data: bytearray):
         transformed_result = characteristic.read_transform(data)
-        await handler(transformed_result)
+        await handler(transformed_result, is_from_notification=True)
 
     await client.start_notify(characteristic.uuid, handle_notification)
 
@@ -102,11 +103,15 @@ class BleDataUpdateCoordinator:
         self._client_lock = asyncio.Lock()
         self._client = None
 
-        self._successful_write_time = datetime.now()
+        # Dates picked at random to be signficantly in the past.
+        self._successful_write_time = datetime.fromisoformat("2011-11-04")
+        self._successful_notification_time = datetime.fromisoformat("2011-11-04")
 
         self.update_interval = DEFAULT_UPDATE_INTERVAL
 
-    async def _consume_result(self, result: _GattReadResult) -> None:
+    async def _consume_result(
+        self, result: _GattReadResult, is_from_notification: bool = False
+    ) -> None:
         """Add new incoming data to our current results."""
 
         if not result or not hasattr(result, "key") or not hasattr(result, "value"):
@@ -117,6 +122,9 @@ class BleDataUpdateCoordinator:
             return
 
         _LOGGER.debug("Updating gatt results with: %s", result)
+
+        if is_from_notification:
+            self._successful_notification_time = datetime.now()
 
         async with self._results_lock:
             self._results[result.key] = result.value
@@ -188,6 +196,11 @@ class BleDataUpdateCoordinator:
                         characteristic.read_action == ReadAction.AFTER_WRITE
                         and (datetime.now() - self._successful_write_time)
                         < DEFAULT_AFTER_WRITE_INTERVAL
+                    )
+                    or (
+                        characteristic.read_action == ReadAction.AFTER_NOTIFICATION
+                        and (datetime.now() - self._successful_notification_time)
+                        < DEFAULT_AFTER_NOTIFICATION_INTERVAL
                     )
                     or (characteristic.read_action == ReadAction.POLL)
                 )
