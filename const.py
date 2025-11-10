@@ -10,7 +10,11 @@ from .src.taco_gatt_read_transform import (
     read_network_zone_count_transform,
     read_network_zone_status_transform,
     read_product_id_transform,
+    read_network_diagnostic_data,
+)
+from .src.taco_gatt_write_transform import (
     write_password_transform,
+    write_network_diagnostic_mode_transform,
 )
 
 LOGGER: Logger = getLogger(__package__)
@@ -83,7 +87,7 @@ _TACO_SERVICES = [
     ),
     Service(
         uuid="1b423141-e0eb-4d9e-a86b-dcabcc3565b9",
-        name="PumpControl",
+        name="ZoneControl",
         characteristics=[
             # This is the mac address, it seems like the official app
             # uses this as a kind of ping by reading the value, and then
@@ -105,11 +109,17 @@ _TACO_SERVICES = [
                 read_action=ReadAction.INDEX,
                 read_transform=read_product_id_transform,
             ),
-            # Seems important...
+            # How to read diagnostic data (eg, zone overrides).
             Characteristic(
                 uuid="1b42315e-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkDiagnosticData",
-                properties=[Property.READ, Property.INDICATE],
+                properties=[
+                    Property.READ,
+                    Property.INDICATE,
+                    Property.NOTIFY,
+                ],  # DOESNT ACTUALLY SUPPORT NOTIFY OMG DONT COMMIT
+                read_action=ReadAction.SUBSCRIBE,  # dunno if this will actually work!
+                read_transform=read_network_diagnostic_data,
             ),
             Characteristic(
                 uuid="1b423162-e0eb-4d9e-a86b-dcabcc3565b9",
@@ -174,7 +184,7 @@ _TACO_SERVICES = [
                 read_action=ReadAction.INDEX,
                 read_transform=read_network_zone_count_transform,
             ),
-            # This is the thermostat status
+            # This is the thermostat status.
             Characteristic(
                 uuid="1b423151-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkThermostatInputStatus",
@@ -182,7 +192,7 @@ _TACO_SERVICES = [
                 read_action=ReadAction.SUBSCRIBE,
                 read_transform=read_network_thermostat_input_status_transform,
             ),
-            # This is the pump status
+            # This is the pump and zone status.
             Characteristic(
                 uuid="1b423152-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkZoneStatus",
@@ -225,11 +235,12 @@ _TACO_SERVICES = [
                 name="operatingMode",
                 properties=[Property.READ, Property.WRITE],
             ),
-            # This is how to trigger a pump manually
+            # This is how to trigger a pump or zone manually.
             Characteristic(
                 uuid="1b42315d-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkDiagnosticMode",
                 properties=[Property.READ, Property.WRITE],
+                write_transform=write_network_diagnostic_mode_transform,
             ),
             Characteristic(
                 uuid="1b42315f-e0eb-4d9e-a86b-dcabcc3565b9",

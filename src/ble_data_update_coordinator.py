@@ -5,18 +5,15 @@ from __future__ import annotations
 import logging
 import asyncio
 
-from datetime import timedelta, datetime
-from typing import Callable
 from dataclasses import dataclass
+from datetime import timedelta, datetime
+from typing import Callable, Protocol
 
 from bleak.backends.device import BLEDevice
-
 from bleak import BleakClient
-
 from bleak_retry_connector import establish_connection, BleakClientWithServiceCache
 
 from homeassistant.core import HomeAssistant, callback
-
 
 from .gatt import Gatt, Characteristic, Property, ReadAction
 
@@ -25,21 +22,47 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_SCAN_INTERVAL = 5  # seconds
 
 
-@dataclass
-class GattReadResult:
+class _GattReadResult(Protocol):
     """The transformed result of a gatt characteristic read."""
+
+    @property
+    def key(self) -> str:
+        """The key to be used in the data returned from this UpdateCoordinator."""
+
+    @property
+    def value(self) -> any:
+        """The value to be used in the data returned from this UpdateCoordinator."""
+
+
+@dataclass
+class LocalGattReadResult:
+    """Implementation for gatt read result."""
 
     key: str
     value: any
 
 
+# TODO should probably use a proper protocol class instead of the current "pair" we are using as an argument for activity and actions.
+
+
+async def _write_gatt(
+    client: BleakClient,
+    characteristic: Characteristic,
+    bytez: bytearray | None,
+) -> None:
+    """Send the client a write gatt request for the characteristic."""
+
+    await client.write_gatt_char(characteristic.uuid, bytez)
+    await asyncio.sleep(0.1)  # 100 milliseconds
+
+
 async def _read_gatt(
     client: BleakClient, characteristic: Characteristic, handler: Callable
-) -> GattReadResult:
+) -> _GattReadResult:
     """Send the client a read gatt request for the characteristic."""
 
-    data = await client.read_gatt_char(characteristic.uuid)
-    transformed_result = characteristic.read_transform(data)
+    bytez = await client.read_gatt_char(characteristic.uuid)
+    transformed_result = characteristic.read_transform(bytez)
     await handler(transformed_result)
 
 
@@ -80,10 +103,10 @@ class BleDataUpdateCoordinator:
 
         self.update_interval = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
 
-    async def _consume_result(self, result: GattReadResult) -> None:
+    async def _consume_result(self, result: _GattReadResult) -> None:
         """Add new incoming data to our current results."""
 
-        if not result.key or not result.value:
+        if not result or not hasattr(result, "key") or not hasattr(result, "value"):
             _LOGGER.warning(
                 "Rejected non GattReadResult, make sure to use a gatt transform: %s",
                 result,
@@ -179,12 +202,41 @@ class BleDataUpdateCoordinator:
             return self._results.copy()
 
     @callback
-    async def write(self) -> None:
+    async def write(self, actions: list[(str, any)]) -> None:
+        """Write to the device."""
+
         _LOGGER.debug("Writing data to device %s", self._ble_device.address)
+
+        client = await self._make_client()
+        try:
+            write_gatt_characteristics = [
+                characteristic
+                for service in self._gatt.services
+                for characteristic in service.characteristics
+                if Property.WRITE in characteristic.properties
+            ]
+
+            for action_key, action_value in actions:
+                for characteristic in write_gatt_characteristics:
+                    bytez = characteristic.write_transform(action_key, action_value)
+                    if not bytez:
+                        continue
+
+                    # The actions are deliberately a list and thus
+                    # must be processed in order and synchronously.
+
+                    await _write_gatt(client, characteristic, bytez)
+        except:
+            _LOGGER.exception(
+                "Failed to write data to device %s", self._ble_device.address
+            )
+            raise
 
     async def force_data_update(self) -> None:
         """Set a timestamp so that home assistant thinks there is new data."""
-        await self._consume_result(GattReadResult("timestamp", datetime.now()))
+        await self._consume_result(
+            LocalGattReadResult("setup_timestamp", datetime.now())
+        )
 
     async def force_data_clear(self) -> None:
         """Remove all result data."""

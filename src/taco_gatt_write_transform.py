@@ -1,0 +1,70 @@
+"""ReadTransforms and WriteTransforms for the GATT characteristics."""
+
+from dataclasses import dataclass
+
+import logging
+
+from .taco_gatt_read_transform import (
+    ZoneInfo,
+    ZONE1,
+    ZONE2,
+    ZONE3,
+    ZONE4,
+    ZONE5,
+    ZONE6,
+    BYTE_BY_ZONE,
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+PROVIDE_PASSWORD = "provide_password"
+
+
+def write_password_transform(activity: str, password: str) -> bytearray | None:
+    """Converts a password string to a bytearray."""
+
+    if activity != PROVIDE_PASSWORD:
+        return None
+
+    if len(password) > 20:
+        # TODO this error should be during the config flow...
+        raise ValueError("Cannot have a TACO password more than 20 characters.")
+    return bytearray(password, encoding="ascii")
+
+
+def _write_force_zone_on(zone_info: ZoneInfo) -> bytearray:
+    """Converts a zone on request to a bytearray."""
+
+    # Yes, this is technically an integer.
+    zone_byte = 0
+    zone_byte |= BYTE_BY_ZONE[ZONE1] if zone_info.zone1 else 0
+    zone_byte |= BYTE_BY_ZONE[ZONE2] if zone_info.zone2 else 0
+    zone_byte |= BYTE_BY_ZONE[ZONE3] if zone_info.zone3 else 0
+    zone_byte |= BYTE_BY_ZONE[ZONE4] if zone_info.zone4 else 0
+    zone_byte |= BYTE_BY_ZONE[ZONE5] if zone_info.zone5 else 0
+    zone_byte |= BYTE_BY_ZONE[ZONE6] if zone_info.zone6 else 0
+
+    return bytearray([0, 16, 0, zone_byte])
+
+
+def _write_force_zone_status_request() -> bytearray:
+    """Creates a force zone status request to a bytearray."""
+
+    return bytearray([1, 0, 0, 16])
+
+
+REQUEST_FORCE_ZONE_STATUS = "request_force_zones_status"
+FORCE_ZONE_ON = "force_zones_on"
+
+
+def write_network_diagnostic_mode_transform(
+    activity: str, extra: any
+) -> bytearray | None:
+    """Converts extra to a network diagnostic mode bytearray."""
+
+    if activity == REQUEST_FORCE_ZONE_STATUS:
+        return _write_force_zone_status_request()
+    if activity == FORCE_ZONE_ON:
+        return _write_force_zone_on(extra)
+    return None

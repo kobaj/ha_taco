@@ -5,17 +5,18 @@ from enum import IntEnum
 from typing import Callable, TypeAlias
 
 ReadTransform: TypeAlias = Callable[[bytearray], any]
-WriteTransform: TypeAlias = Callable[[any], bytearray]
+WriteTransform: TypeAlias = Callable[[str, any], bytearray | None]
+
 
 class ReadAction(IntEnum):
     """Enum for the automatic read actions to take place with characteristic"""
 
     UNKNOWN = 0
 
-    NOOP = 1 # Do nothing
-    INDEX = 2 # Query once when first connected
-    POLL = 3 # Query regularly on a steady interval
-    SUBSCRIBE = 4 # Subscribe to notifications
+    NOOP = 1  # Do nothing
+    INDEX = 2  # Query once when first connected
+    POLL = 3  # Query regularly on a steady interval
+    SUBSCRIBE = 4  # Subscribe to notifications
 
 
 class Property(IntEnum):
@@ -23,9 +24,9 @@ class Property(IntEnum):
 
     UNKNOWN = 0
 
-    READ = 1 # GATT can be read
-    NOTIFY = 2 # GATT can be subscribed to
-    WRITE = 3 # GATT can be written to
+    READ = 1  # GATT can be read
+    NOTIFY = 2  # GATT can be subscribed to
+    WRITE = 3  # GATT can be written to
 
     # No idea what these do
     EXTENDED_PROPS = 4
@@ -43,7 +44,7 @@ class Characteristic:
     read_action: ReadAction = ReadAction.NOOP
     read_transform: ReadTransform = lambda a: a
 
-    write_transform: WriteTransform = lambda a: a
+    write_transform: WriteTransform = lambda _a, _b: None
 
 
 @dataclass

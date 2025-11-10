@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
-
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -22,6 +20,7 @@ from .src.taco_gatt_read_transform import (
     THERMOSTAT_INPUT_STATUS,
     ZONE_STATUS,
     ZONE_COUNT,
+    ZoneInfo,
 )
 from .src.callable_entity import CallableBinarySensor, CallableDescription
 
@@ -29,6 +28,15 @@ from .const import DOMAIN
 
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _value_fn(data: dict[str, any], key: str, index: int):
+    """Returns the zone value at index, 1 based."""
+    value = data.get(key, None)
+    if not value:
+        return None
+
+    return getattr(value, f"zone{index}")
 
 
 def _make_zone_sensor(index: int) -> CallableDescription:
@@ -40,7 +48,7 @@ def _make_zone_sensor(index: int) -> CallableDescription:
             device_class=BinarySensorDeviceClass.RUNNING,
         ),
         exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
-        value_fn=lambda data: data[ZONE_STATUS].get_zone(index),
+        value_fn=lambda data: _value_fn(data, ZONE_STATUS, index),
     )
 
 
@@ -53,7 +61,7 @@ def _make_thermostat_sensor(index: int) -> CallableDescription:
             device_class=None,  # Deliberately none
         ),
         exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
-        value_fn=lambda data: data[THERMOSTAT_INPUT_STATUS].get_zone(index),
+        value_fn=lambda data: _value_fn(data, THERMOSTAT_INPUT_STATUS, index),
     )
 
 

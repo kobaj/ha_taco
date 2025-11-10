@@ -16,18 +16,23 @@ from homeassistant.helpers.entity_platform import (
     AddConfigEntryEntitiesCallback,
 )
 
-from .src.taco_config_entry import TacoConfigEntry
+from .src.taco_config_entry import TacoConfigEntry, TacoRuntimeData
 from .src.taco_device_info import create_device_info, create_entity_id
 from .src.taco_gatt_read_transform import (
-    THERMOSTAT_INPUT_STATUS,
-    ZONE_STATUS,
     ZONE_COUNT,
+    ZoneInfo,
+    NETWORK_DIAGNOSTIC_FORCE_ZONE_STATUS,
+)
+from .src.taco_gatt_write_transform import (
+    PROVIDE_PASSWORD,
+    FORCE_ZONE_ON,
+    REQUEST_FORCE_ZONE_STATUS,
 )
 from .src.callable_entity import (
     CallableSwitch,
     CallableDescription,
-    TURN_OFF,
-    TURN_ON,
+    SWITCH_TURN_OFF,
+    SWITCH_TURN_ON,
     Action,
 )
 
@@ -37,37 +42,58 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-def _write_fn(activity: str) -> list[Action]:
-    if activity == TURN_ON:
-        return []  # TODO
-    if activity == TURN_OFF:
-        return []  # TODO
+def _value_fn(data: dict[str, any], key: str, index: int):
+    """Returns the zone value at index, 1 based."""
+    value = data.get(key, None)
+    if not value:
+        return None
 
-    raise ValueError(f"Cannot handle activity of type {activity} as a switch.")
+    return getattr(value, f"zone{index}")
 
 
-def _make_pump_switch(index: int) -> CallableDescription:
-    """Make a pump sensor, index is 1 based."""
+def _write_fn(
+    activity: str, index: int, taco_runtime_data: TacoRuntimeData
+) -> list[Action]:
+    """Setup the three actions necessary to actuate a switch"""
+
+    if activity != SWITCH_TURN_ON and activity != SWITCH_TURN_OFF:
+        raise ValueError(f"Cannot handle activity of type {activity} as a switch.")
+
+    taco_runtime_data.force_zone_on[index - 1] = (
+        True if activity == SWITCH_TURN_ON else False
+    )
+
+    zone_info = ZoneInfo(
+        zone1=taco_runtime_data.force_zone_on[0],
+        zone2=taco_runtime_data.force_zone_on[1],
+        zone3=taco_runtime_data.force_zone_on[2],
+        zone4=taco_runtime_data.force_zone_on[3],
+        zone5=taco_runtime_data.force_zone_on[4],
+        zone6=taco_runtime_data.force_zone_on[5],
+    )
+
+    return [
+        (PROVIDE_PASSWORD, taco_runtime_data.password),
+        (FORCE_ZONE_ON, zone_info),
+        (REQUEST_FORCE_ZONE_STATUS, None),
+    ]
+
+
+def _make_zone_switch(
+    index: int, taco_runtime_data: TacoRuntimeData
+) -> CallableDescription:
+    """Make a zone sensor, index is 1 based."""
 
     return CallableDescription(
         entity_description=SwitchEntityDescription(
             key=f"FORCE_ON_ZONE_{index}", device_class=SwitchDeviceClass.SWITCH
         ),
         exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
-        value_fn=lambda data: False,  # TODO
-        write_fn=_write_fn,
+        value_fn=lambda data: _value_fn(
+            data, NETWORK_DIAGNOSTIC_FORCE_ZONE_STATUS, index
+        ),
+        write_fn=lambda activity: _write_fn(activity, index, taco_runtime_data),
     )
-
-
-_SWITCHES: tuple[CallableDescription, ...] = [
-    # Pumps
-    _make_pump_switch(1),
-    _make_pump_switch(2),
-    _make_pump_switch(3),
-    _make_pump_switch(4),
-    _make_pump_switch(5),
-    _make_pump_switch(6),
-]
 
 
 async def async_setup_entry(
@@ -82,11 +108,27 @@ async def async_setup_entry(
     update_coordinator = taco_runtime_data.update_coordinator
     data = update_coordinator.data
 
+    if not taco_runtime_data.password:
+        _LOGGER.info(
+            "No password provided to Taco, so no switches or buttons are enabled."
+        )
+        return
+
     # Note, we aren't actually guaranteed to have any
     # data at this point so read that value with caution!
     #
     # Home Assistant doesn't like it when we try to wait
     # for the data, or throw ConfigEntryNotReady exceptions.
+
+    switches = [
+        # zones
+        _make_zone_switch(1, taco_runtime_data),
+        _make_zone_switch(2, taco_runtime_data),
+        _make_zone_switch(3, taco_runtime_data),
+        _make_zone_switch(4, taco_runtime_data),
+        _make_zone_switch(5, taco_runtime_data),
+        _make_zone_switch(6, taco_runtime_data),
+    ]
 
     async_add_entities(
         CallableSwitch(
@@ -96,6 +138,6 @@ async def async_setup_entry(
             unique_id=create_entity_id(entry, description),
             device_info=create_device_info(DOMAIN, entry),
         )
-        for description in _SWITCHES
+        for description in switches
         if description.exists_fn(data)
     )
