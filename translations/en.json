@@ -32,7 +32,9 @@
     "abort": {
       "already_configured": "Device is already configured",
       "unknown": "Unknown error occurred",
-      "no_devices_found": "No devices found"
+      "no_devices_found": "No devices found",
+      "reauth_successful": "Will now attempt to setup device",
+      "reconfigure_successful": "Will now attempt to  setup device"
     }
   }
 }

@@ -266,5 +266,5 @@ class BleDataUpdateCoordinator:
         """Stop all clients and shutdown bluetooth connections."""
         async with self._client_lock:
             if self._client and self._client.is_connected:
-                self._client.disconnect()
-        self.force_data_clear()
+                await self._client.disconnect()
+        await self.force_data_clear()

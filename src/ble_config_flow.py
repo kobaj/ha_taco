@@ -188,13 +188,13 @@ class BleConfigFlow(config_entries.ConfigFlow):
             self._abort_if_unique_id_mismatch()
             return self.async_update_reload_and_abort(
                 self._get_reauth_entry(),
-                data_updates=user_input,
+                data=user_input,
             )
         if self.source == SOURCE_RECONFIGURE:
             self._abort_if_unique_id_mismatch()
             return self.async_update_reload_and_abort(
                 self._get_reconfigure_entry(),
-                data_updates=user_input,
+                data=user_input,
             )
         self._abort_if_unique_id_configured()
 
