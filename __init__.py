@@ -30,6 +30,8 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SWITCH]
 
+# TODO add RSSI as a sensor
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Set up device from a config entry."""
@@ -41,6 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
     assert address
     await close_stale_connections_by_address(address)
 
+    # Start bluetooth setup.
     ble_device = bluetooth.async_ble_device_from_address(
         hass, address.upper(), connectable=True
     )
@@ -51,6 +54,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
             translation_placeholders={"address": address},
         )
 
+    # Start our data coordinators, responsible for reading/writing bluetooth data.
+    #
+    # Store these and other important info in runtime_data so
+    # sensors and other entities can access it.
     data_coordinator = BleDataUpdateCoordinator(hass, ble_device, taco_gatt)
     update_coordinator = CallableTwoWayDataUpdateCoordinator(
         hass,
@@ -62,7 +69,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         update_interval=data_coordinator.update_interval,
         always_update=False,
     )
+    entry.runtime_data = TacoRuntimeData(
+        address=address,
+        update_coordinator=update_coordinator,
+        _data_coordinator=data_coordinator,
+    )
 
+    # ConfigEntryAuthFailures must be after
+    # we setup runtime data on our entry.
     password = entry.data.get(CONF_TACO_DEVICE_PASSWORD)
     if password and len(password) > 20:
         raise ConfigEntryAuthFailed(
@@ -82,15 +96,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         except Exception as err:
             raise ConfigEntryAuthFailed(err) from err
 
+    # We got this far, the password is good.
+    if password:
+        entry.runtime_data.password = password
+
     # Need to get data now because some of the entry setup will use it.
     await update_coordinator.async_config_entry_first_refresh()
 
-    entry.runtime_data = TacoRuntimeData(
-        address=address,
-        password=password,
-        update_coordinator=update_coordinator,
-        _data_coordinator=data_coordinator,
-    )
+    # Subscribe entries.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Trigger a force refresh for all the entrys that just subscribed.

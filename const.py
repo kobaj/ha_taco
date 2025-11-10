@@ -22,6 +22,7 @@ from .src.taco_gatt_write_transform import (
 
 LOGGER: Logger = getLogger(__package__)
 
+# Must be the same as the directory name
 DOMAIN = "ha_taco"
 
 _TACO_SERVICES = [

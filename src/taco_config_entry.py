@@ -13,10 +13,11 @@ class TacoRuntimeData:
     """Holds everything our entries need for runtime."""
 
     address: str
-    password: str | None
 
     update_coordinator: TwoWayDataUpdateCoordinator
     _data_coordinator: BleDataUpdateCoordinator
+
+    password: str | None = None
 
     # Not sure how I feel about this. We should really be grabbing the
     # status from the sensors themselves. And also probably wrapping this

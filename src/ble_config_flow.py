@@ -18,9 +18,6 @@ from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
     ConfigFlowResult,
 )
-from homeassistant.const import (
-    CONF_ADDRESS,
-)
 
 from homeassistant.helpers.selector import (
     TextSelector,
@@ -115,7 +112,7 @@ class BleConfigFlow(config_entries.ConfigFlow):
             step_id="device_selection",
             description_placeholders=placeholders,
             data_schema=vol.Schema(
-                {vol.Required(CONF_ADDRESS): vol.In(address_by_name)}
+                {vol.Required(BLE_CONF_DEVICE_ADDRESS): vol.In(address_by_name)}
             ),
         )
 
@@ -129,7 +126,7 @@ class BleConfigFlow(config_entries.ConfigFlow):
             return self.show_device_selection()
         assert self._discovery_infos
 
-        address = user_input[CONF_ADDRESS]
+        address = user_input[BLE_CONF_DEVICE_ADDRESS]
         self._discovery_info = next(
             di for di in self._discovery_infos if di.address == address
         )
