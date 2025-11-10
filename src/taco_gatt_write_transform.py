@@ -48,6 +48,10 @@ def _write_force_zone_on(zone_info: ZoneInfo) -> bytearray:
 def _write_force_zone_status_request() -> bytearray:
     """Creates a force zone status request to a bytearray."""
 
+    # Note, there is a significant delay required between setting the force zone on
+    # and then attempting to read its status with the following command.
+    #
+    # TODO one day I'll figure out a solution.
     return bytearray([1, 0, 0, 16])
 
 

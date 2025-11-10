@@ -83,10 +83,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
             "Cannot have a Taco password more than 20 characters."
         )
 
-    # Send off an initial request to get the force zone status.
+    # Send off an initial request to get the device status.
     # Also doubles as a check to make sure the password entered is correct.
     if password:
         try:
+            # TODO Note we can only make a single write request at the moment.
+            # Because you must wait some time to read the result. Only after
+            # getting a successful read can you then make another write request.
+            #
+            # See comment inside of taco_gatt_Write_transform.py
             await update_coordinator.write(
                 [
                     (PROVIDE_PASSWORD, password),

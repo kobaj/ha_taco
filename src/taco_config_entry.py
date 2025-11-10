@@ -22,7 +22,7 @@ class TacoRuntimeData:
     # Not sure how I feel about this. We should really be grabbing the
     # status from the sensors themselves. And also probably wrapping this
     # in an asyncio lock. But thats a lot of extra complexity...
-    force_zone_on: list[bool] = field(default_factory=lambda: [False] * 6)
+    force_zone_on: list[bool] = field(default_factory=lambda: [None] * 6)
 
 
 type TacoConfigEntry = ConfigEntry[TacoRuntimeData]
