@@ -115,7 +115,7 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
         # by the coordinator rather than the sensor or ble device because
         # we are using the CoordinatorEntity. Might rework this...
 
-        _LOGGER.debug("Handle coordinator update for entity %s...", self.name)
+        _LOGGER.debug("Handle coordinator update for entity %s", self.name)
 
         if not self.value_fn:
             _LOGGER.info("No function to consume data with for entity %s", self.name)
@@ -143,9 +143,8 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
     async def _handle_coordinator_write(self, actions: list[Action]) -> None:
         """Push data from the entity to the coordinator."""
 
-        _LOGGER.debug(
-            "Handle coordinator write for entity %s with values %s", self.name, actions
-        )
+        # Be careful logging actions, sometimes it includes passwords.
+        _LOGGER.debug("Handle coordinator write for entity %s", self.name)
 
         if not actions:
             _LOGGER.info("No actions to write for entity %s", self.name)

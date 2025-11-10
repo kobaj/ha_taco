@@ -101,6 +101,9 @@ class BleDataUpdateCoordinator:
         self._client_lock = asyncio.Lock()
         self._client = None
 
+        self._successful_write_lock = asyncio.Lock()
+        self._successful_write = False
+
         self.update_interval = timedelta(seconds=DEFAULT_SCAN_INTERVAL)
 
     async def _consume_result(self, result: _GattReadResult) -> None:
@@ -185,6 +188,10 @@ class BleDataUpdateCoordinator:
                         characteristic.read_action == ReadAction.SUBSCRIBE
                         and is_first_poll
                     )
+                    or (
+                        characteristic.read_action == ReadAction.AFTER_WRITE
+                        and (self._successful_write or is_first_poll)
+                    )
                     or (characteristic.read_action == ReadAction.POLL)
                 )
             ]
@@ -198,6 +205,9 @@ class BleDataUpdateCoordinator:
             _LOGGER.exception("Failed to poll device %s", self._ble_device.address)
             raise
 
+        async with self._successful_write_lock:
+            self._successful_write = False
+
         async with self._results_lock:
             return self._results.copy()
 
@@ -207,6 +217,7 @@ class BleDataUpdateCoordinator:
 
         _LOGGER.debug("Writing data to device %s", self._ble_device.address)
 
+        successful_write = False
         client = await self._make_client()
         try:
             write_gatt_characteristics = [
@@ -226,11 +237,16 @@ class BleDataUpdateCoordinator:
                     # must be processed in order and synchronously.
 
                     await _write_gatt(client, characteristic, bytez)
+                    successful_write = True
         except:
             _LOGGER.exception(
                 "Failed to write data to device %s", self._ble_device.address
             )
             raise
+
+        if successful_write:
+            async with self._successful_write_lock:
+                self._successful_write = True
 
     async def force_data_update(self) -> None:
         """Set a timestamp so that home assistant thinks there is new data."""

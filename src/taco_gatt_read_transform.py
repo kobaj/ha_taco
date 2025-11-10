@@ -22,7 +22,7 @@ def _is_byte_match(byte, target) -> bool:
 def _assert_bytearray_len(bytez: bytearray, length: int):
     if len(bytez) < length:
         raise ValueError(
-            f"Invalid byte array, expected length of at least {length}, got ({len(bytez)}): {" ".join(f'{b:02}' for b in list(bytez))}"
+            f"Invalid byte array, expected length of at least {length}, got ({len(bytez)}): {" ".join(f'{b:03}' for b in list(bytez))}"
         )
 
 
@@ -47,7 +47,7 @@ ZONE_BY_BYTE = {
 
 BYTE_BY_ZONE = {v: k for k, v in ZONE_BY_BYTE.items()}
 
-TACO_PRODUCT_INFO = "tacoProductInfo"
+TACO_PRODUCT_INFO = "taco_product_info"
 
 
 @dataclass
@@ -103,7 +103,7 @@ def read_product_id_transform(bytez: bytearray) -> ReadResult:
     )
 
 
-ZONE_COUNT = "networkZoneCount"
+ZONE_COUNT = "network_zone_count"
 
 
 def read_network_zone_count_transform(bytez: bytearray) -> ReadResult:
@@ -114,7 +114,7 @@ def read_network_zone_count_transform(bytez: bytearray) -> ReadResult:
     return ReadResult(ZONE_COUNT, bytez[19])
 
 
-THERMOSTAT_INPUT_STATUS = "thermostatInputStatus"
+THERMOSTAT_INPUT_STATUS = "thermostat_input_status"
 
 
 @dataclass
@@ -150,7 +150,7 @@ def read_network_thermostat_input_status_transform(
     )
 
 
-ZONE_STATUS = "zoneStatus"
+ZONE_STATUS = "zone_status"
 
 
 def read_network_zone_status_transform(bytez: bytearray) -> ReadResult:
@@ -176,24 +176,24 @@ NETWORK_DIAGNOSTIC_FORCE_ZONE_STATUS = "network_diagnostic_force_zone_status"
 NETWORK_DIAGNOSTIC_LAST_EXCEPTION = "network_diagnostic_last_exception"
 
 
-def read_network_diagnostic_data(bytez: bytearray) -> ReadResult | None:
+def read_network_diagnostic_data_transform(bytez: bytearray) -> ReadResult | None:
     """Reads the network diagnostic data."""
 
     _assert_bytearray_len(bytez, 20)
 
-    if bytez[0] == 0 and bytez[0] == 00:
+    if bytez[0] == 0 and bytez[1] == 0:
         return ReadResult("empty_network_diagnostic_data", "noop")
 
-    if bytez[0] == 1 and bytez[1] == 00:
+    if bytez[0] == 1 and bytez[1] == 0:
         return ReadResult(NETWORK_DIAGNOSTIC_ONBOARD_INPUTS, "TODO")
 
-    if bytez[0] == 4 and bytez[1] == 00:
+    if bytez[0] == 4 and bytez[1] == 0:
         return ReadResult(NETWORK_DIAGNOSTIC_DAUGHTER_CARD, "TODO")
 
-    if bytez[0] == 16 and bytez[1] == 00:
+    if bytez[0] == 16 and bytez[1] == 0:
         return ReadResult(NETWORK_DIAGNOSTIC_OPERATING_MODE, "TODO")
 
-    if bytez[0] == 00 and bytez[1] == 16:
+    if bytez[0] == 0 and bytez[1] == 16:
         # Read force zone status
         byte = bytez[3]
         zone1 = _is_byte_match(byte, BYTE_BY_ZONE[ZONE1])
@@ -211,4 +211,11 @@ def read_network_diagnostic_data(bytez: bytearray) -> ReadResult | None:
         return ReadResult(NETWORK_DIAGNOSTIC_LAST_EXCEPTION, bytez)
 
     _LOGGER.warning("Unknown diagnostic data bytes %s", bytez)
+    return None
+
+
+def read_log_transform(bytez: bytearray) -> None:
+    """Reads and log data and do nothing else."""
+
+    _LOGGER.info("Logging read of bytes %s", " ".join(f"{b:03}" for b in list(bytez)))
     return None

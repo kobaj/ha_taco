@@ -17,6 +17,7 @@ class ReadAction(IntEnum):
     INDEX = 2  # Query once when first connected
     POLL = 3  # Query regularly on a steady interval
     SUBSCRIBE = 4  # Subscribe to notifications
+    AFTER_WRITE = 5  # Query after writing any value
 
 
 class Property(IntEnum):

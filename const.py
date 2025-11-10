@@ -10,7 +10,8 @@ from .src.taco_gatt_read_transform import (
     read_network_zone_count_transform,
     read_network_zone_status_transform,
     read_product_id_transform,
-    read_network_diagnostic_data,
+    read_network_diagnostic_data_transform,
+    read_log_transform,
 )
 from .src.taco_gatt_write_transform import (
     write_password_transform,
@@ -113,13 +114,9 @@ _TACO_SERVICES = [
             Characteristic(
                 uuid="1b42315e-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkDiagnosticData",
-                properties=[
-                    Property.READ,
-                    Property.INDICATE,
-                    Property.NOTIFY,
-                ],  # DOESNT ACTUALLY SUPPORT NOTIFY OMG DONT COMMIT
-                read_action=ReadAction.SUBSCRIBE,  # dunno if this will actually work!
-                read_transform=read_network_diagnostic_data,
+                properties=[Property.READ, Property.INDICATE],
+                read_action=ReadAction.AFTER_WRITE,
+                read_transform=read_network_diagnostic_data_transform,
             ),
             Characteristic(
                 uuid="1b423162-e0eb-4d9e-a86b-dcabcc3565b9",
@@ -240,6 +237,8 @@ _TACO_SERVICES = [
                 uuid="1b42315d-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkDiagnosticMode",
                 properties=[Property.READ, Property.WRITE],
+                read_action=ReadAction.AFTER_WRITE,
+                read_transform=read_log_transform,
                 write_transform=write_network_diagnostic_mode_transform,
             ),
             Characteristic(
