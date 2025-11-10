@@ -21,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_AFTER_WRITE_INTERVAL = timedelta(seconds=30)
 DEFAULT_AFTER_NOTIFICATION_INTERVAL = timedelta(seconds=30)
-DEFAULT_UPDATE_INTERVAL = timedelta(seconds=5)
+DEFAULT_UPDATE_INTERVAL = timedelta(seconds=1)
 
 
 class _GattReadResult(Protocol):
