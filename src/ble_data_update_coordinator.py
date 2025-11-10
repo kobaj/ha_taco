@@ -185,7 +185,7 @@ class BleDataUpdateCoordinator:
 
         if not is_first_poll and not self._is_connected():
             # At some point we lost connection, so re-setup our notifications
-            self.setup()
+            await self.setup()
             return
 
         client = await self._make_client()
