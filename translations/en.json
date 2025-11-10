@@ -1,0 +1,38 @@
+{
+  "title": "Taco Controller",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to a Taco Controller"
+      },
+      "device_selection": {
+        "title": "Select a device",
+        "data": {
+          "ble_config_device_name": "Device Name",
+          "ble_config_device_address": "Device MAC Address"
+        }
+      },
+      "confirm": {
+        "title": "Confirm",
+        "data": {
+          "ble_config_device_name": "Device Name",
+          "ble_config_device_address": "Device MAC Address",
+          "ble_config_device_password": "(Optional) Device Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Integration",
+        "description": "The device password needs re-entered"
+      },
+      "reconfigure": {
+        "title": "Reconfigure Integration",
+        "description": "Change configuration settings"
+      }
+    },
+    "abort": {
+      "already_configured": "Device is already configured",
+      "unknown": "Unknown error occurred",
+      "no_devices_found": "No devices found"
+    }
+  }
+}
