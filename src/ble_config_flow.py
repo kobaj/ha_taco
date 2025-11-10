@@ -14,6 +14,8 @@ from homeassistant.components.bluetooth import (
     async_discovered_service_info,
 )
 from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    SOURCE_RECONFIGURE,
     ConfigFlowResult,
 )
 from homeassistant.const import (
@@ -75,7 +77,7 @@ class BleConfigFlow(config_entries.ConfigFlow):
             return self.async_abort(reason="already_configured")
 
         self._discovery_info = discovery_info
-        return self.async_show_confirm()
+        return self.show_confirm()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -95,9 +97,9 @@ class BleConfigFlow(config_entries.ConfigFlow):
 
         if not self._discovery_infos:
             return self.async_abort(reason="no_devices_found")
-        return self.async_show_device_selection()
+        return self.show_device_selection()
 
-    def async_show_device_selection(self) -> ConfigFlowResult:
+    def show_device_selection(self) -> ConfigFlowResult:
         """Show the device selection dialog."""
 
         assert self._discovery_infos
@@ -124,16 +126,16 @@ class BleConfigFlow(config_entries.ConfigFlow):
         _LOGGER.debug("Got user device selection: %s", user_input)
 
         if user_input is None:
-            return self.async_show_device_selection()
+            return self.show_device_selection()
         assert self._discovery_infos
 
         address = user_input[CONF_ADDRESS]
         self._discovery_info = next(
             di for di in self._discovery_infos if di.address == address
         )
-        return self.async_show_confirm()
+        return self.show_confirm()
 
-    def async_show_confirm(self) -> ConfigFlowResult:
+    def show_confirm(self) -> ConfigFlowResult:
         """Show the configuration dialog."""
 
         assert self._discovery_info
@@ -180,12 +182,63 @@ class BleConfigFlow(config_entries.ConfigFlow):
         if user_input is None:
             # I would expect us to abort here, but apparently this infinite loop is
             # not only recommended, but required. WTF home assistant...
-            return self.async_show_confirm()
+            return self.show_confirm()
         assert self._discovery_info
 
         address = self._discovery_info.address
         await self.async_set_unique_id(address)
+        if self.source == SOURCE_REAUTH:
+            self._abort_if_unique_id_mismatch()
+            return self.async_update_reload_and_abort(
+                self._get_reauth_entry(),
+                data_updates=user_input,
+            )
+        if self.source == SOURCE_RECONFIGURE:
+            self._abort_if_unique_id_mismatch()
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(),
+                data_updates=user_input,
+            )
         self._abort_if_unique_id_configured()
 
         title = self._decrypter.get_device_name(self._discovery_info)
         return self.async_create_entry(title=title, data=user_input)
+
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Perform reauth upon an API authentication error."""
+
+        address = self._get_reauth_entry().runtime_data.address
+        self._discovery_info = next(
+            di
+            for di in async_discovered_service_info(self.hass, False)
+            if di.address == address
+        )
+
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Dialog that informs the user that reauth is required."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="reauth_confirm",
+                data_schema=vol.Schema({}),
+            )
+        return await self.async_step_confirm()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step that lets a user reconfigure their device."""
+
+        address = self._get_reconfigure_entry().runtime_data.address
+        self._discovery_info = next(
+            di
+            for di in async_discovered_service_info(self.hass, False)
+            if di.address == address
+        )
+
+        return await self.async_step_confirm()

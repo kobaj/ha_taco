@@ -27,9 +27,6 @@ def write_password_transform(activity: str, password: str) -> bytearray | None:
     if activity != PROVIDE_PASSWORD:
         return None
 
-    if len(password) > 20:
-        # TODO this error should be during the config flow...
-        raise ValueError("Cannot have a TACO password more than 20 characters.")
     return bytearray(password, encoding="ascii")
 
 

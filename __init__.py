@@ -8,8 +8,7 @@ import logging
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
-from homeassistant.exceptions import ConfigEntryNotReady
-
+from homeassistant.exceptions import ConfigEntryNotReady, ConfigEntryAuthFailed
 
 from bleak_retry_connector import close_stale_connections_by_address
 
@@ -60,12 +59,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         always_update=False,
     )
 
+    # TODO should run an authorization check and throw an reauthentication
+    # exception if the current password is both set and not correct.
+    # See more: https://developers.home-assistant.io/docs/config_entries_config_flow_handler/#reauthentication
+    password = entry.data.get(CONF_TACO_DEVICE_PASSWORD)
+    if password and len(password) > 20:
+        raise ConfigEntryAuthFailed(
+            "Cannot have a Taco password more than 20 characters."
+        )
+
     # Need to get data now because some of the entry setup will use it.
     await update_coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = TacoRuntimeData(
         address=address,
-        password=entry.data.get(CONF_TACO_DEVICE_PASSWORD),
+        password=password,
         update_coordinator=update_coordinator,
         _data_coordinator=data_coordinator,
     )
