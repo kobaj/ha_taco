@@ -63,9 +63,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         always_update=False,
     )
 
-    # TODO should run an authorization check and throw an reauthentication
-    # exception if the current password is both set and not correct.
-    # See more: https://developers.home-assistant.io/docs/config_entries_config_flow_handler/#reauthentication
     password = entry.data.get(CONF_TACO_DEVICE_PASSWORD)
     if password and len(password) > 20:
         raise ConfigEntryAuthFailed(
@@ -73,13 +70,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
         )
 
     # Send off an initial request to get the force zone status.
+    # Also doubles as a check to make sure the password entered is correct.
     if password:
-        await update_coordinator.write(
-            [
-                (PROVIDE_PASSWORD, password),
-                (REQUEST_FORCE_ZONE_STATUS, None),
-            ]
-        )
+        try:
+            await update_coordinator.write(
+                [
+                    (PROVIDE_PASSWORD, password),
+                    (REQUEST_FORCE_ZONE_STATUS, None),
+                ]
+            )
+        except Exception as err:
+            raise ConfigEntryAuthFailed(err) from err
 
     # Need to get data now because some of the entry setup will use it.
     await update_coordinator.async_config_entry_first_refresh()
