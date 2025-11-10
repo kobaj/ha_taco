@@ -16,6 +16,10 @@ from .src.callable_entity import CallableTwoWayDataUpdateCoordinator
 from .src.ble_data_update_coordinator import BleDataUpdateCoordinator
 from .src.taco_config_entry import TacoConfigEntry, TacoRuntimeData
 from .src.ble_config_flow import BLE_CONF_DEVICE_ADDRESS
+from .src.taco_gatt_write_transform import (
+    PROVIDE_PASSWORD,
+    REQUEST_FORCE_ZONE_STATUS,
+)
 
 from .const import DOMAIN, taco_gatt
 from .config_flow import CONF_TACO_DEVICE_PASSWORD
@@ -68,7 +72,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
             "Cannot have a Taco password more than 20 characters."
         )
 
-    # TODO send off a request for the zone status
+    # Send off an initial request to get the force zone status.
+    if password:
+        await update_coordinator.write(
+            [
+                (PROVIDE_PASSWORD, password),
+                (REQUEST_FORCE_ZONE_STATUS, None),
+            ]
+        )
 
     # Need to get data now because some of the entry setup will use it.
     await update_coordinator.async_config_entry_first_refresh()
@@ -90,6 +101,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
 async def async_unload_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Unload a config entry."""
     await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    await entry.runtime_data.data_coordinator.shutdown()
+    await entry.runtime_data._data_coordinator.shutdown()  # private, meh.
 
     return True
