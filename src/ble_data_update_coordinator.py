@@ -44,9 +44,6 @@ class LocalGattReadResult:
     value: any
 
 
-# TODO should probably use a proper protocol class instead of the current "pair" we are using as an argument for activity and actions.
-
-
 async def _write_gatt(
     client: BleakClient,
     characteristic: Characteristic,
