@@ -19,8 +19,8 @@ from .gatt import Gatt, Characteristic, Property, ReadAction
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_AFTER_WRITE_INTERVAL = timedelta(seconds=30)
-DEFAULT_AFTER_NOTIFICATION_INTERVAL = timedelta(seconds=30)
+DEFAULT_AFTER_WRITE_INTERVAL = timedelta(seconds=15)
+DEFAULT_AFTER_NOTIFICATION_INTERVAL = timedelta(seconds=15)
 DEFAULT_UPDATE_INTERVAL = timedelta(seconds=1)
 
 
@@ -126,9 +126,12 @@ class BleDataUpdateCoordinator:
         async with self._results_lock:
             self._results[result.key] = result.value
 
+    async def _is_connected(self) -> bool:
+        return self._client and self._client.is_connected
+
     async def _make_client(self) -> BleakClient:
         async with self._client_lock:
-            if not self._client or not self._client.is_connected:
+            if not self._is_connected():
                 try:
                     self._client = await establish_connection(
                         BleakClientWithServiceCache,
@@ -179,6 +182,11 @@ class BleDataUpdateCoordinator:
     async def poll(self, is_first_poll: bool = False) -> None:
         """Poll the device."""
         _LOGGER.debug("Polling for new data for device %s", self._ble_device.address)
+
+        if not is_first_poll and not self._is_connected():
+            # At some point we lost connection, so re-setup our notifications
+            self.setup()
+            return
 
         client = await self._make_client()
         try:
