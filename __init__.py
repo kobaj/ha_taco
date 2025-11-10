@@ -68,6 +68,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
             "Cannot have a Taco password more than 20 characters."
         )
 
+    # TODO send off a request for the zone status
+
     # Need to get data now because some of the entry setup will use it.
     await update_coordinator.async_config_entry_first_refresh()
 

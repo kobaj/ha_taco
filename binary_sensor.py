@@ -21,6 +21,8 @@ from .src.taco_gatt_read_transform import (
     ZONE_STATUS,
     ZONE_COUNT,
     ZoneInfo,
+    NETWORK_AUX1,
+    NETWORK_AUX2,
 )
 from .src.callable_entity import CallableBinarySensor, CallableDescription
 
@@ -65,6 +67,24 @@ def _make_thermostat_sensor(index: int) -> CallableDescription:
     )
 
 
+def _make_aux_sensor(index: int) -> CallableDescription:
+    """Make an aux sensor, index is 1 based."""
+
+    key = {
+        1: NETWORK_AUX1,
+        2: NETWORK_AUX2,
+    }.get(index, None)
+
+    return CallableDescription(
+        entity_description=BinarySensorEntityDescription(
+            key=f"AUX_{index}",
+            device_class=BinarySensorDeviceClass.RUNNING,
+        ),
+        exists_fn=lambda _data: True,
+        value_fn=lambda data: data.get(key, None),
+    )
+
+
 _SENSORS: tuple[CallableDescription, ...] = [
     # Pumps
     _make_zone_sensor(1),
@@ -80,6 +100,10 @@ _SENSORS: tuple[CallableDescription, ...] = [
     _make_thermostat_sensor(4),
     _make_thermostat_sensor(5),
     _make_thermostat_sensor(6),
+    # Aux
+    # Don't enable these, they don't work. See comment inside of const.py
+    # _make_aux_sensor(1),
+    # _make_aux_sensor(2),
 ]
 
 

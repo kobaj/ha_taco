@@ -219,3 +219,25 @@ def read_log_transform(bytez: bytearray) -> None:
 
     _LOGGER.info("Logging read of bytes %s", " ".join(f"{b:03}" for b in list(bytez)))
     return None
+
+
+NETWORK_AUX1 = "network_aux1"
+
+
+def read_network_aux1_transform(bytez: bytearray) -> ReadResult:
+    """Converts a bytearray to an boolean."""
+    _assert_bytearray_len(bytez, 2)
+
+    # 1 means on means true
+    return ReadResult(NETWORK_AUX1, _is_byte_match(bytez[1], 1))
+
+
+NETWORK_AUX2 = "network_aux2"
+
+
+def read_network_aux2_transform(bytez: bytearray) -> ReadResult:
+    """Converts a bytearray to an boolean."""
+    _assert_bytearray_len(bytez, 2)
+
+    # 1 means on means true
+    return ReadResult(NETWORK_AUX2, _is_byte_match(bytez[1], 1))

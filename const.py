@@ -12,6 +12,8 @@ from .src.taco_gatt_read_transform import (
     read_product_id_transform,
     read_network_diagnostic_data_transform,
     read_log_transform,
+    read_network_aux1_transform,
+    read_network_aux2_transform,
 )
 from .src.taco_gatt_write_transform import (
     write_password_transform,
@@ -207,16 +209,24 @@ _TACO_SERVICES = [
                 name="networkPriorityBoilerEndSwitch",
                 properties=[Property.READ, Property.WRITE],
             ),
+            # For whatever reason these aux are not reporting
+            # their state via bluetooth, so don't include them.
             Characteristic(
                 uuid="1b423155-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkAux1",
                 properties=[Property.READ, Property.WRITE],
+                # read_action=ReadAction.AFTER_NOTIFICATION,
+                # read_transform=read_network_aux1_transform,
             ),
             Characteristic(
                 uuid="1b423156-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkAux2",
                 properties=[Property.READ, Property.WRITE],
+                # read_action=ReadAction.AFTER_NOTIFICATION,
+                # read_transform=read_network_aux2_transform,
             ),
+            # That's weird, the Taco documentation doesn't mention
+            # that any of their units have a third aux...
             Characteristic(
                 uuid="1b423157-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkAux3",
