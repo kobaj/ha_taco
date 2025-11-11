@@ -21,10 +21,10 @@ _LOGGER = logging.getLogger(__name__)
 PROVIDE_PASSWORD = "provide_password"
 
 
-def write_password_transform(activity: str, password: str) -> bytearray | None:
+def write_password_transform(action_key: str, password: str) -> bytearray | None:
     """Converts a password string to a bytearray."""
 
-    if activity != PROVIDE_PASSWORD:
+    if action_key != PROVIDE_PASSWORD:
         return None
 
     return bytearray(password, encoding="ascii")
@@ -60,12 +60,12 @@ FORCE_ZONE_ON = "force_zones_on"
 
 
 def write_network_diagnostic_mode_transform(
-    activity: str, extra: any
+    action_key: str, extra: any
 ) -> bytearray | None:
     """Converts extra to a network diagnostic mode bytearray."""
 
-    if activity == REQUEST_FORCE_ZONE_STATUS:
+    if action_key == REQUEST_FORCE_ZONE_STATUS:
         return _write_force_zone_status_request()
-    if activity == FORCE_ZONE_ON:
+    if action_key == FORCE_ZONE_ON:
         return _write_force_zone_on(extra)
     return None

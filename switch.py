@@ -61,15 +61,17 @@ def _value_fn(data: dict[str, any], index: int, taco_runtime_data: TacoRuntimeDa
 
 
 def _write_fn(
-    activity: str, index: int, taco_runtime_data: TacoRuntimeData
+    switch_activity: str, index: int, taco_runtime_data: TacoRuntimeData
 ) -> list[Action]:
     """Setup the three actions necessary to actuate a switch"""
 
-    if activity != SWITCH_TURN_ON and activity != SWITCH_TURN_OFF:
-        raise ValueError(f"Cannot handle activity of type {activity} as a switch.")
+    if switch_activity != SWITCH_TURN_ON and switch_activity != SWITCH_TURN_OFF:
+        raise ValueError(
+            f"Cannot handle activity of type {switch_activity} as a switch."
+        )
 
     taco_runtime_data.force_zone_on[index - 1] = (
-        True if activity == SWITCH_TURN_ON else False
+        True if switch_activity == SWITCH_TURN_ON else False
     )
 
     zone_info = ZoneInfo(
