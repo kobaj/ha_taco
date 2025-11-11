@@ -19,6 +19,7 @@ from .src.ble_config_flow import BLE_CONF_DEVICE_ADDRESS
 from .src.taco_gatt_write_transform import (
     PROVIDE_PASSWORD,
     REQUEST_FORCE_ZONE_STATUS,
+    WriteRequest,
 )
 
 from .const import DOMAIN, taco_gatt
@@ -94,8 +95,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
             # See comment inside of taco_gatt_Write_transform.py
             await update_coordinator.write(
                 [
-                    (PROVIDE_PASSWORD, password),
-                    (REQUEST_FORCE_ZONE_STATUS, None),
+                    WriteRequest(PROVIDE_PASSWORD, password),
+                    WriteRequest(REQUEST_FORCE_ZONE_STATUS, None),
                 ]
             )
         except Exception as err:

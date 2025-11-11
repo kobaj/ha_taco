@@ -20,6 +20,9 @@ class ReadAction(IntEnum):
     AFTER_WRITE = 5  # Query after writing any value
     AFTER_NOTIFICATION = 6  # Query after receiving any notification
 
+    # TODO: Don't add any additional read actions, instead introduce
+    # a callback method so users can define their own logic.
+
 
 class Property(IntEnum):
     """Enum for the different supported properties of a Characteristic"""

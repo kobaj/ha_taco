@@ -28,11 +28,23 @@ from homeassistant.components.switch import SwitchEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-Action: TypeAlias = tuple[str, any]
+
+class _WriteRequest(Protocol):
+    """A write request."""
+
+    @property
+    def action(self) -> str:
+        """The particular action to invoke."""
+
+    @property
+    def extra(self) -> any:
+        """The extra arguments and data to pass to the action."""
+
+
 Data: TypeAlias = dict[str, any]
 Exists: TypeAlias = Callable[[Data], bool]
 ReadValue: TypeAlias = Callable[[Data], StateType]
-WriteValue: TypeAlias = Callable[[str, any], list[Action]]
+WriteValue: TypeAlias = Callable[[str, any], list[_WriteRequest]]
 
 
 @dataclass
@@ -51,7 +63,7 @@ class TwoWayDataUpdateCoordinator(DataUpdateCoordinator):
     # Ideally this would be a Protocol, but since python doesn't
     # yet have intersection types, well, here we are...
 
-    async def write(self, actions: list[Action]) -> None:
+    async def write(self, actions: list[_WriteRequest]) -> None:
         """The data to write to the coordinator."""
         raise NotImplementedError("Write method not implemented.")
 
@@ -70,7 +82,7 @@ class CallableTwoWayDataUpdateCoordinator(TwoWayDataUpdateCoordinator):
         super().__init__(hass, logger, **kwargs)
         self._write_method = write_method
 
-    async def write(self, actions: list[Action]) -> None:
+    async def write(self, actions: list[_WriteRequest]) -> None:
         """The data to write to the coordinator."""
 
         if self._write_method is None:
@@ -150,7 +162,7 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
 
         self.async_write_ha_state()
 
-    async def _handle_coordinator_write(self, actions: list[Action]) -> None:
+    async def _handle_coordinator_write(self, actions: list[_WriteRequest]) -> None:
         """Push data from the entity to the coordinator."""
 
         # Be careful logging actions, sometimes it includes passwords.

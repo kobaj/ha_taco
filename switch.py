@@ -26,14 +26,13 @@ from .src.taco_gatt_read_transform import (
 from .src.taco_gatt_write_transform import (
     PROVIDE_PASSWORD,
     FORCE_ZONE_ON,
-    REQUEST_FORCE_ZONE_STATUS,
+    WriteRequest,
 )
 from .src.callable_entity import (
     CallableSwitch,
     CallableDescription,
     SWITCH_TURN_OFF,
     SWITCH_TURN_ON,
-    Action,
 )
 
 from .const import DOMAIN
@@ -62,7 +61,7 @@ def _value_fn(data: dict[str, any], index: int, taco_runtime_data: TacoRuntimeDa
 
 def _write_fn(
     switch_activity: str, index: int, taco_runtime_data: TacoRuntimeData
-) -> list[Action]:
+) -> list[WriteRequest]:
     """Setup the three actions necessary to actuate a switch"""
 
     if switch_activity != SWITCH_TURN_ON and switch_activity != SWITCH_TURN_OFF:
@@ -91,8 +90,8 @@ def _write_fn(
     # Until then, we'll just rely on home assistant's internal state.
 
     return [
-        (PROVIDE_PASSWORD, taco_runtime_data.password),
-        (FORCE_ZONE_ON, zone_info),
+        WriteRequest(PROVIDE_PASSWORD, taco_runtime_data.password),
+        WriteRequest(FORCE_ZONE_ON, zone_info),
     ]
 
 

@@ -44,6 +44,18 @@ class LocalGattReadResult:
     value: any
 
 
+class _GattWriteRequest(Protocol):
+    """The untransformed request to write out to a gatt characteristic."""
+
+    @property
+    def action(self) -> str:
+        """The particular characteristic action to invoke."""
+
+    @property
+    def extra(self) -> any:
+        """The extra arguments and data to pass to the characteristic."""
+
+
 async def _write_gatt(
     client: BleakClient,
     characteristic: Characteristic,
@@ -224,7 +236,7 @@ class BleDataUpdateCoordinator:
             return self._results.copy()
 
     @callback
-    async def write(self, actions: list[(str, any)]) -> None:
+    async def write(self, actions: list[_GattWriteRequest]) -> None:
         """Write to the device."""
 
         _LOGGER.debug("Writing data to device %s", self._ble_device.address)
@@ -239,9 +251,9 @@ class BleDataUpdateCoordinator:
                 if Property.WRITE in characteristic.properties
             ]
 
-            for action_key, action_value in actions:
+            for action in actions:
                 for characteristic in write_gatt_characteristics:
-                    bytez = characteristic.write_transform(action_key, action_value)
+                    bytez = characteristic.write_transform(action.action, action.extra)
                     if not bytez:
                         continue
 

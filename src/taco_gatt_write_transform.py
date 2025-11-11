@@ -18,13 +18,21 @@ from .taco_gatt_read_transform import (
 _LOGGER = logging.getLogger(__name__)
 
 
+@dataclass
+class WriteRequest:
+    """A write request, will be passed to write_transform as two args."""
+
+    action: str
+    extra: any
+
+
 PROVIDE_PASSWORD = "provide_password"
 
 
-def write_password_transform(action_key: str, password: str) -> bytearray | None:
+def write_password_transform(action: str, password: str) -> bytearray | None:
     """Converts a password string to a bytearray."""
 
-    if action_key != PROVIDE_PASSWORD:
+    if action != PROVIDE_PASSWORD:
         return None
 
     return bytearray(password, encoding="ascii")
@@ -60,12 +68,12 @@ FORCE_ZONE_ON = "force_zones_on"
 
 
 def write_network_diagnostic_mode_transform(
-    action_key: str, extra: any
+    action: str, extra: any
 ) -> bytearray | None:
     """Converts extra to a network diagnostic mode bytearray."""
 
-    if action_key == REQUEST_FORCE_ZONE_STATUS:
+    if action == REQUEST_FORCE_ZONE_STATUS:
         return _write_force_zone_status_request()
-    if action_key == FORCE_ZONE_ON:
+    if action == FORCE_ZONE_ON:
         return _write_force_zone_on(extra)
     return None
