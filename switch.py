@@ -20,6 +20,7 @@ from .src.taco_config_entry import TacoConfigEntry, TacoRuntimeData
 from .src.taco_device_info import create_device_info, create_entity_id
 from .src.taco_gatt_read_transform import (
     ZONE_COUNT,
+    ZONE_STATUS,
     ZoneInfo,
     NETWORK_DIAGNOSTIC_FORCE_ZONE_STATUS,
 )
@@ -33,6 +34,7 @@ from .src.callable_entity import (
     CallableDescription,
     SWITCH_TURN_OFF,
     SWITCH_TURN_ON,
+    POLLING_UPDATE,
 )
 
 from .const import DOMAIN
@@ -60,18 +62,40 @@ def _value_fn(data: dict[str, any], index: int, taco_runtime_data: TacoRuntimeDa
 
 
 def _write_fn(
-    switch_activity: str, index: int, taco_runtime_data: TacoRuntimeData
+    switch_activity: str,
+    data: dict[str, any],
+    index: int,
+    taco_runtime_data: TacoRuntimeData,
 ) -> list[WriteRequest]:
     """Setup the three actions necessary to actuate a switch"""
 
-    if switch_activity != SWITCH_TURN_ON and switch_activity != SWITCH_TURN_OFF:
-        raise ValueError(
-            f"Cannot handle activity of type {switch_activity} as a switch."
-        )
+    # Because of unreliability with reading the force zone status,
+    # and we want home assistant to be the authority,
+    # we are relying on the runtime_data internal state rather than
+    # anything else to maintain the source of truth for the switch.
 
-    taco_runtime_data.force_zone_on[index - 1] = (
-        True if switch_activity == SWITCH_TURN_ON else False
-    )
+    if switch_activity == SWITCH_TURN_ON:
+        taco_runtime_data.force_zone_on[index - 1] = True
+    elif switch_activity == SWITCH_TURN_OFF:
+        taco_runtime_data.force_zone_on[index - 1] = False
+    elif switch_activity == POLLING_UPDATE:
+        # Make sure the pump status matches the switch status.
+        switch_status = taco_runtime_data.force_zone_on[index - 1]
+        if switch_status is None:
+            return
+
+        zone_info = data.get(ZONE_STATUS, None)
+        if zone_info is None:
+            return
+
+        if switch_status == getattr(zone_info, f"zone{index}"):
+            return
+
+        # Else it looks like for whatever reason the switch
+        # doesn't match the zone, so send out another update.
+    else:
+        _LOGGER.info("Got an unknown switch activity: %s", switch_activity)
+        return
 
     zone_info = ZoneInfo(
         zone1=taco_runtime_data.force_zone_on[0],
@@ -81,13 +105,6 @@ def _write_fn(
         zone5=taco_runtime_data.force_zone_on[4],
         zone6=taco_runtime_data.force_zone_on[5],
     )
-
-    # It would be best if we could now request the zone status. But
-    # as mentioned in a comment in taco_gatt_write_transform, we must
-    # wait a significant amount of time between writes.
-    #
-    # TODO one day I'll think of a good way to actually handle this.
-    # Until then, we'll just rely on home assistant's internal state.
 
     return [
         WriteRequest(PROVIDE_PASSWORD, taco_runtime_data.password),
@@ -106,7 +123,9 @@ def _make_zone_switch(
         ),
         exists_fn=lambda data: data.get(ZONE_COUNT, 6) >= index,
         value_fn=lambda data: _value_fn(data, index, taco_runtime_data),
-        write_fn=lambda activity: _write_fn(activity, index, taco_runtime_data),
+        write_fn=lambda activity, data: _write_fn(
+            activity, data, index, taco_runtime_data
+        ),
     )
 
 
@@ -146,6 +165,7 @@ async def async_setup_entry(
 
     async_add_entities(
         CallableSwitch(
+            hass,
             update_coordinator,
             description,
             name=description.entity_description.key,

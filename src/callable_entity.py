@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from typing import Callable, TypeAlias, Protocol
 
-from homeassistant.core import callback
+from homeassistant.core import callback, HomeAssistant
 
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
@@ -44,7 +44,7 @@ class _WriteRequest(Protocol):
 Data: TypeAlias = dict[str, any]
 Exists: TypeAlias = Callable[[Data], bool]
 ReadValue: TypeAlias = Callable[[Data], StateType]
-WriteValue: TypeAlias = Callable[[str, any], list[_WriteRequest]]
+WriteValue: TypeAlias = Callable[[str, Data], list[_WriteRequest]]
 
 
 @dataclass
@@ -91,6 +91,9 @@ class CallableTwoWayDataUpdateCoordinator(TwoWayDataUpdateCoordinator):
         await self._write_method(actions)
 
 
+POLLING_UPDATE = "data_polling_update"
+
+
 class _BaseCallableCoordinatorEntity(CoordinatorEntity):
     """Representation of a Coordinator Entity."""
 
@@ -100,6 +103,7 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
 
     def __init__(
         self,
+        hass: HomeAssistant,
         update_coordinator: TwoWayDataUpdateCoordinator | DataUpdateCoordinator,
         callable_description: CallableDescription,
         name: str,
@@ -109,8 +113,12 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
         """Set up the instance."""
         super().__init__(update_coordinator)
         self._update_coordinator = update_coordinator
+        self._hass = hass
 
         if not update_coordinator.always_update:
+            # This is because the calls to write_fn don't actually
+            # immediately set the state of the sensor. The update
+            # needs to go back around to the call to value_fn.
             raise ValueError(
                 "Data Update Coordinator must have always update set to True."
             )
@@ -159,6 +167,12 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
                 self._update_coordinator.data,
             )
             raise
+
+        if self.write_fn:
+            actions = self.write_fn(POLLING_UPDATE, self._update_coordinator.data)
+            if actions:
+                # Note! This does not wait for completion.
+                self._hass.async_create_task(self._handle_coordinator_write(actions))
 
         self.async_write_ha_state()
 
@@ -218,16 +232,22 @@ class CallableSwitch(_BaseCallableCoordinatorEntity, SwitchEntity):
             return False
         return None
 
-    async def async_turn_on(self) -> None:
-        """Turn the entity on."""
+    async def _async_actuate(self, switch_activity: str):
+        """Turn the switch on or off based on the activity"""
         assert self.write_fn
 
-        actions = self.write_fn(SWITCH_TURN_ON)
+        actions = self.write_fn(
+            switch_activity, getattr(self._update_coordinator, "data", {})
+        )
+        if not actions:
+            return
+
         await self._handle_coordinator_write(actions)
+
+    async def async_turn_on(self) -> None:
+        """Turn the entity on."""
+        await self._async_actuate(SWITCH_TURN_ON)
 
     async def async_turn_off(self) -> None:
         """Turn the entity off."""
-        assert self.write_fn
-
-        actions = self.write_fn(SWITCH_TURN_OFF)
-        await self._handle_coordinator_write(actions)
+        await self._async_actuate(SWITCH_TURN_OFF)

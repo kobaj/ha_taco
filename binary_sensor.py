@@ -127,6 +127,7 @@ async def async_setup_entry(
 
     async_add_entities(
         CallableBinarySensor(
+            hass,
             update_coordinator,
             description,
             name=description.entity_description.key,
