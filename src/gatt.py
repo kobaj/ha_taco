@@ -17,8 +17,6 @@ class ReadAction(IntEnum):
     INDEX = 2  # Query once when first connected
     POLL = 3  # Query regularly on a steady interval
     SUBSCRIBE = 4  # Subscribe to notifications
-    AFTER_WRITE = 5  # Query after writing any value
-    AFTER_NOTIFICATION = 6  # Query after receiving any notification
 
     # TODO: Don't add any additional read actions, instead introduce
     # a callback method so users can define their own logic.

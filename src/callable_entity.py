@@ -97,7 +97,7 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
             next_value = self.value_fn(self.coordinator.data)
             if previous_value == next_value:
                 return
-            _LOGGER.debug("Setting entity %s to %s", self.name, next_value)
+            _LOGGER.info("Setting entity %s to %s", self.name, next_value)
             self._attr_native_value = next_value
         except:
             self._attr_native_value = None

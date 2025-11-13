@@ -41,25 +41,9 @@ async def send_initial_write_requests(runtime_data: TacoRuntimeData):
 
     await _validate_password(runtime_data.password, runtime_data.ble_coordinator)
 
-    # TODO Note we can only make a single write request at the moment.
-    # Because you must wait some time to read the result. Only after
-    # getting a successful read can you then make another write request.
-    #
-    # See comment inside of taco_gatt_Write_transform.py
-    await runtime_data.ble_coordinator.write(
-        [
-            WriteRequest(PROVIDE_PASSWORD, runtime_data.password),
-            WriteRequest(REQUEST_FORCE_ZONE_STATUS),
-        ]
-    )
-
 
 def _create_write_requests(runtime_data: TacoRuntimeData) -> list[WriteRequest]:
     """The write action that should take place upon a successful loop."""
-
-    if runtime_data.force_zone_on[0] == None:
-        # Don't need to check all 6 force zone on, none are yet initialized.
-        return []
 
     zone_info = ZoneInfo(
         zone1=runtime_data.force_zone_on[0],
@@ -79,7 +63,7 @@ def _create_write_requests(runtime_data: TacoRuntimeData) -> list[WriteRequest]:
 async def _send_write_requests(
     actions: list[WriteRequest], ble_coordinator: BleDataUpdateCoordinator
 ) -> bool:
-    _LOGGER.debug(
+    _LOGGER.info(
         "Sending out write requests (%s): %s",
         len(actions),
         [a for a in actions if a.action != PROVIDE_PASSWORD],
@@ -125,6 +109,10 @@ async def setup_write_loop(hass: HomeAssistant, runtime_data: TacoRuntimeData):
     """Sets up the loop(s) that write data back to the device."""
 
     state = {}
+
+    # This write loop will send out an initial set of messages when the
+    # home assistant integration initially boots. So that makes the Taco
+    # match our assumptions and expectations with state.
 
     async def _stateless_loop(_time):
         await _loop(state, runtime_data)

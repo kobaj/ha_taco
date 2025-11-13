@@ -21,7 +21,7 @@ class TacoRuntimeData:
     password: str | None = None
 
     remove_listeners: Callable[[], None] = lambda: None
-    force_zone_on: list[bool] = field(default_factory=lambda: [None] * 6)
+    force_zone_on: list[bool] = field(default_factory=lambda: [False] * 6)
 
 
 type TacoConfigEntry = ConfigEntry[TacoRuntimeData]

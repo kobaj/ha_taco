@@ -63,6 +63,8 @@ async def _write_gatt(
 ) -> None:
     """Send the client a write gatt request for the characteristic."""
 
+    # Data might contain passwords
+    _LOGGER.info("Writing data (hidden) out to GATT uuid %s", characteristic.uuid)
     await client.write_gatt_char(characteristic.uuid, bytez)
     await asyncio.sleep(0.1)  # 100 milliseconds
 
@@ -73,6 +75,7 @@ async def _read_gatt(
     """Send the client a read gatt request for the characteristic."""
 
     bytez = await client.read_gatt_char(characteristic.uuid)
+    _LOGGER.info("For GATT uuid %s, got bytes %s", characteristic.uuid, bytez)
     transformed_result = characteristic.read_transform(bytez)
     await handler(transformed_result)
 
@@ -82,8 +85,9 @@ async def _setup_notification_subscriptions(
 ) -> None:
     """Sets up and listens to gatt notifications for the characteristic."""
 
-    async def handle_notification(_: any, data: bytearray):
-        transformed_result = characteristic.read_transform(data)
+    async def handle_notification(_: any, bytez: bytearray):
+        _LOGGER.info("For GATT uuid %s, got bytes %s", characteristic.uuid, bytez)
+        transformed_result = characteristic.read_transform(bytez)
         await handler(transformed_result, is_from_notification=True)
 
     await client.start_notify(characteristic.uuid, handle_notification)
@@ -112,10 +116,6 @@ class BleDataUpdateCoordinator:
         self._client_lock = asyncio.Lock()
         self._client = None
 
-        # Dates picked at random to be signficantly in the past.
-        self._successful_write_time = datetime.fromisoformat("2011-11-04")
-        self._successful_notification_time = datetime.fromisoformat("2011-11-04")
-
         self.update_interval = DEFAULT_UPDATE_INTERVAL
 
     async def _consume_result(
@@ -130,10 +130,11 @@ class BleDataUpdateCoordinator:
             )
             return
 
-        _LOGGER.debug("Updating gatt results with: %s", result)
-
-        if is_from_notification:
-            self._successful_notification_time = datetime.now()
+        _LOGGER.info(
+            "Updating gatt results with (%s): %s",
+            result,
+            "notification" if is_from_notification else "poll",
+        )
 
         async with self._results_lock:
             self._results[result.key] = result.value
@@ -209,16 +210,6 @@ class BleDataUpdateCoordinator:
                 if Property.READ in characteristic.properties
                 and (
                     (characteristic.read_action != ReadAction.NOOP and is_first_poll)
-                    or (
-                        characteristic.read_action == ReadAction.AFTER_WRITE
-                        and (datetime.now() - self._successful_write_time)
-                        < DEFAULT_AFTER_WRITE_INTERVAL
-                    )
-                    or (
-                        characteristic.read_action == ReadAction.AFTER_NOTIFICATION
-                        and (datetime.now() - self._successful_notification_time)
-                        < DEFAULT_AFTER_NOTIFICATION_INTERVAL
-                    )
                     or (characteristic.read_action == ReadAction.POLL)
                 )
             ]
@@ -241,7 +232,6 @@ class BleDataUpdateCoordinator:
 
         _LOGGER.debug("Writing data to device %s", self._ble_device.address)
 
-        successful_write = False
         client = await self._make_client()
         try:
             write_gatt_characteristics = [
@@ -261,15 +251,11 @@ class BleDataUpdateCoordinator:
                     # must be processed in order and synchronously.
 
                     await _write_gatt(client, characteristic, bytez)
-                    successful_write = True
         except:
             _LOGGER.exception(
                 "Failed to write data to device %s", self._ble_device.address
             )
             raise
-
-        if successful_write:
-            self._successful_write_time = datetime.now()
 
     async def force_data_update(self) -> None:
         """Set a timestamp so that home assistant thinks there is new data."""

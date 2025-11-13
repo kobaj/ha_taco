@@ -32,7 +32,7 @@ PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SWITCH]
 
 async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Set up device from a config entry."""
-    _LOGGER.debug("Setting up a Taco!: %s with data %s", entry, entry.data)
+    _LOGGER.info("Setting up a Taco!: %s with data %s", entry, entry.data)
 
     hass.data.setdefault(DOMAIN, {})
 

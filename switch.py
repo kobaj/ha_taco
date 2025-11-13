@@ -40,19 +40,12 @@ def _value_fn(
 ) -> bool | None:
     """Returns the zone value at index, 1 based."""
 
-    # Read from internal state for remaining lifetime of entity
-    internal_state = taco_runtime_data.force_zone_on[index - 1]
-    if internal_state is not None:
-        return internal_state
-
-    # Read from the device on initial bootup
-    value = data.get(NETWORK_DIAGNOSTIC_FORCE_ZONE_STATUS, None)
-    if value is None:
-        return None
-
-    external_state = getattr(value, f"zone{index}")
-    taco_runtime_data.force_zone_on[index - 1] = external_state
-    return external_state
+    # Read from internal state for remaining lifetime of entity.
+    # Making a few assumptions that taco_init.py will correctly
+    # match this by sending a write all force on zones to False on boot.
+    #
+    # TLDR, Home Assistant is the authority and source of truth for switches.
+    return taco_runtime_data.force_zone_on[index - 1]
 
 
 def _write_fn(

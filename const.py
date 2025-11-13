@@ -123,7 +123,6 @@ _TACO_SERVICES = [
                 uuid="1b42315e-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkDiagnosticData",
                 properties=[Property.READ, Property.INDICATE],
-                read_action=ReadAction.AFTER_WRITE,
                 read_transform=read_network_diagnostic_data_transform,
             ),
             Characteristic(
