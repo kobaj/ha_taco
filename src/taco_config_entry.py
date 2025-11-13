@@ -1,11 +1,12 @@
 """Entry and runtime information for Taco Pump and Zone Controller."""
 
 from dataclasses import dataclass, field
+from typing import Callable
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .ble_data_update_coordinator import BleDataUpdateCoordinator
-from .callable_entity import TwoWayDataUpdateCoordinator
 
 
 @dataclass
@@ -14,14 +15,12 @@ class TacoRuntimeData:
 
     address: str
 
-    update_coordinator: TwoWayDataUpdateCoordinator
-    _data_coordinator: BleDataUpdateCoordinator
+    update_coordinator: DataUpdateCoordinator
+    ble_coordinator: BleDataUpdateCoordinator
 
     password: str | None = None
 
-    # Not sure how I feel about this. We should really be grabbing the
-    # status from the sensors themselves. And also probably wrapping this
-    # in an asyncio lock. But thats a lot of extra complexity...
+    remove_listeners: Callable[[], None] = lambda: None
     force_zone_on: list[bool] = field(default_factory=lambda: [None] * 6)
 
 

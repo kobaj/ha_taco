@@ -2,10 +2,10 @@
 
 import logging
 
-from collections.abc import Callable, Awaitable
+from collections.abc import Callable
 from dataclasses import dataclass
 
-from typing import Callable, TypeAlias, Protocol
+from typing import Callable, TypeAlias
 
 from homeassistant.core import callback, HomeAssistant
 
@@ -29,22 +29,10 @@ from homeassistant.components.switch import SwitchEntity
 _LOGGER = logging.getLogger(__name__)
 
 
-class _WriteRequest(Protocol):
-    """A write request."""
-
-    @property
-    def action(self) -> str:
-        """The particular action to invoke."""
-
-    @property
-    def extra(self) -> any:
-        """The extra arguments and data to pass to the action."""
-
-
 Data: TypeAlias = dict[str, any]
 Exists: TypeAlias = Callable[[Data], bool]
 ReadValue: TypeAlias = Callable[[Data], StateType]
-WriteValue: TypeAlias = Callable[[str, Data], list[_WriteRequest]]
+WriteValue: TypeAlias = Callable[[str, Data], None]
 
 
 @dataclass
@@ -57,43 +45,6 @@ class CallableDescription:
     write_fn: WriteValue | None = None
 
 
-class TwoWayDataUpdateCoordinator(DataUpdateCoordinator):
-    """A coordinator that can not only read, but also write!."""
-
-    # Ideally this would be a Protocol, but since python doesn't
-    # yet have intersection types, well, here we are...
-
-    async def write(self, actions: list[_WriteRequest]) -> None:
-        """The data to write to the coordinator."""
-        raise NotImplementedError("Write method not implemented.")
-
-
-class CallableTwoWayDataUpdateCoordinator(TwoWayDataUpdateCoordinator):
-    """A coordinator that can not only read, but also write!."""
-
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        logger: logging.Logger,
-        *,
-        write_method: Callable[[], Awaitable[None]] | None = None,
-        **kwargs,
-    ):
-        super().__init__(hass, logger, **kwargs)
-        self._write_method = write_method
-
-    async def write(self, actions: list[_WriteRequest]) -> None:
-        """The data to write to the coordinator."""
-
-        if self._write_method is None:
-            raise NotImplementedError("Write method callback not implemented")
-
-        await self._write_method(actions)
-
-
-POLLING_UPDATE = "data_polling_update"
-
-
 class _BaseCallableCoordinatorEntity(CoordinatorEntity):
     """Representation of a Coordinator Entity."""
 
@@ -103,8 +54,7 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        update_coordinator: TwoWayDataUpdateCoordinator | DataUpdateCoordinator,
+        update_coordinator: DataUpdateCoordinator,
         callable_description: CallableDescription,
         name: str,
         unique_id: str,
@@ -112,16 +62,6 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
     ) -> None:
         """Set up the instance."""
         super().__init__(update_coordinator)
-        self._update_coordinator = update_coordinator
-        self._hass = hass
-
-        if not update_coordinator.always_update:
-            # This is because the calls to write_fn don't actually
-            # immediately set the state of the sensor. The update
-            # needs to go back around to the call to value_fn.
-            raise ValueError(
-                "Data Update Coordinator must have always update set to True."
-            )
 
         self.entity_description = callable_description.entity_description
         self.value_fn = callable_description.value_fn
@@ -146,7 +86,7 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
             _LOGGER.info("No function to consume data with for entity %s", self.name)
             return
 
-        if not self._update_coordinator.data:
+        if not self.coordinator.data:
             _LOGGER.warning(
                 "No data received from coordinator for entity %s", self.name
             )
@@ -154,7 +94,7 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
 
         try:
             previous_value = getattr(self, "_attr_native_value", None)
-            next_value = self.value_fn(self._update_coordinator.data)
+            next_value = self.value_fn(self.coordinator.data)
             if previous_value == next_value:
                 return
             _LOGGER.debug("Setting entity %s to %s", self.name, next_value)
@@ -164,41 +104,11 @@ class _BaseCallableCoordinatorEntity(CoordinatorEntity):
             _LOGGER.exception(
                 "Failed to update entity %s with data %s",
                 self.name,
-                self._update_coordinator.data,
+                self.coordinator.data,
             )
             raise
-
-        if self.write_fn:
-            actions = self.write_fn(POLLING_UPDATE, self._update_coordinator.data)
-            if actions:
-                # Note! This does not wait for completion.
-                self._hass.async_create_task(self._handle_coordinator_write(actions))
 
         self.async_write_ha_state()
-
-    async def _handle_coordinator_write(self, actions: list[_WriteRequest]) -> None:
-        """Push data from the entity to the coordinator."""
-
-        # Be careful logging actions, sometimes it includes passwords.
-        _LOGGER.debug("Handle coordinator write for entity %s", self.name)
-
-        if not actions:
-            _LOGGER.info("No actions to write for entity %s", self.name)
-            return
-
-        if not hasattr(self._update_coordinator, "write"):
-            # This means you most likely used a DateUpdateCoordinator
-            # instead of a TwoWayDataUpdateCoordinator. DataUpdateCoordinators can
-            # only be used for read operations. Writes require a TwoWayDataUpdateCoordinator.
-            raise ValueError(f"No function to write data with for entity {self.name}")
-
-        try:
-            await self._update_coordinator.write(actions)
-        except:
-            _LOGGER.exception(
-                "Failed to write data for entity %s with values %s", self.name, actions
-            )
-            raise
 
 
 class CallableBinarySensor(_BaseCallableCoordinatorEntity, BinarySensorEntity):
@@ -234,15 +144,15 @@ class CallableSwitch(_BaseCallableCoordinatorEntity, SwitchEntity):
 
     async def _async_actuate(self, switch_activity: str):
         """Turn the switch on or off based on the activity"""
-        assert self.write_fn
+        if not self.write_fn:
+            raise ValueError(
+                f"Need a write_fn passed to CallableEntity for Switch {self.name}."
+            )
 
-        actions = self.write_fn(
-            switch_activity, getattr(self._update_coordinator, "data", {})
-        )
-        if not actions:
-            return
+        self.write_fn(switch_activity, getattr(self.coordinator, "data", {}))
 
-        await self._handle_coordinator_write(actions)
+        # Trigger an immediate state read so the UI is reflected very quickly.
+        self._handle_coordinator_update()
 
     async def async_turn_on(self) -> None:
         """Turn the entity on."""

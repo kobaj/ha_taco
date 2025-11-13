@@ -32,7 +32,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
-def _value_fn(data: dict[str, any], key: str, index: int):
+def _value_fn(data: dict[str, any], key: str, index: int) -> bool | None:
     """Returns the zone value at index, 1 based."""
     value = data.get(key, None)
     if not value:
@@ -127,7 +127,6 @@ async def async_setup_entry(
 
     async_add_entities(
         CallableBinarySensor(
-            hass,
             update_coordinator,
             description,
             name=description.entity_description.key,

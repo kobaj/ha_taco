@@ -19,8 +19,8 @@ from .gatt import Gatt, Characteristic, Property, ReadAction
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_AFTER_WRITE_INTERVAL = timedelta(seconds=15)
-DEFAULT_AFTER_NOTIFICATION_INTERVAL = timedelta(seconds=15)
+DEFAULT_AFTER_WRITE_INTERVAL = timedelta(seconds=5)
+DEFAULT_AFTER_NOTIFICATION_INTERVAL = timedelta(seconds=5)
 DEFAULT_UPDATE_INTERVAL = timedelta(seconds=1)
 
 

@@ -4,23 +4,19 @@ from __future__ import annotations
 
 import logging
 
-
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
-from homeassistant.exceptions import ConfigEntryNotReady, ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from bleak_retry_connector import close_stale_connections_by_address
 
-from .src.callable_entity import CallableTwoWayDataUpdateCoordinator
+from .src.taco_init import setup_write_loop, send_initial_write_requests
 from .src.ble_data_update_coordinator import BleDataUpdateCoordinator
 from .src.taco_config_entry import TacoConfigEntry, TacoRuntimeData
 from .src.ble_config_flow import BLE_CONF_DEVICE_ADDRESS
-from .src.taco_gatt_write_transform import (
-    PROVIDE_PASSWORD,
-    REQUEST_FORCE_ZONE_STATUS,
-    WriteRequest,
-)
+
 
 from .const import DOMAIN, taco_gatt
 from .config_flow import CONF_TACO_DEVICE_PASSWORD
@@ -59,52 +55,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
     #
     # Store these and other important info in runtime_data so
     # sensors and other entities can access it.
-    data_coordinator = BleDataUpdateCoordinator(hass, ble_device, taco_gatt)
-    update_coordinator = CallableTwoWayDataUpdateCoordinator(
+    ble_coordinator = BleDataUpdateCoordinator(hass, ble_device, taco_gatt)
+    update_coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
         name=DOMAIN,
-        update_method=data_coordinator.poll,
-        setup_method=data_coordinator.setup,
-        write_method=data_coordinator.write,
-        update_interval=data_coordinator.update_interval,
-        always_update=True,
+        update_method=ble_coordinator.poll,
+        setup_method=ble_coordinator.setup,
+        update_interval=ble_coordinator.update_interval,
+        always_update=False,
     )
     entry.runtime_data = TacoRuntimeData(
         address=address,
+        password=entry.data.get(CONF_TACO_DEVICE_PASSWORD),
         update_coordinator=update_coordinator,
-        _data_coordinator=data_coordinator,
+        ble_coordinator=ble_coordinator,
     )
 
-    # ConfigEntryAuthFailures must be after
-    # we setup runtime data on our entry.
-    password = entry.data.get(CONF_TACO_DEVICE_PASSWORD)
-    if password and len(password) > 20:
-        raise ConfigEntryAuthFailed(
-            "Cannot have a Taco password more than 20 characters."
-        )
-
-    # Send off an initial request to get the device status.
-    # Also doubles as a check to make sure the password entered is correct.
-    if password:
-        try:
-            # TODO Note we can only make a single write request at the moment.
-            # Because you must wait some time to read the result. Only after
-            # getting a successful read can you then make another write request.
-            #
-            # See comment inside of taco_gatt_Write_transform.py
-            await update_coordinator.write(
-                [
-                    WriteRequest(PROVIDE_PASSWORD, password),
-                    WriteRequest(REQUEST_FORCE_ZONE_STATUS, None),
-                ]
-            )
-        except Exception as err:
-            raise ConfigEntryAuthFailed(err) from err
-
-    # We got this far, the password is good.
-    if password:
-        entry.runtime_data.password = password
+    # Very important Taco setup.
+    await send_initial_write_requests(entry.runtime_data)
+    entry.runtime_data.remove_listeners = await setup_write_loop(
+        hass, entry.runtime_data
+    )
 
     # Need to get data now because some of the entry setup will use it.
     await update_coordinator.async_config_entry_first_refresh()
@@ -112,8 +84,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
     # Subscribe entries.
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Trigger a force refresh for all the entrys that just subscribed.
-    await data_coordinator.force_data_update()
+    # Trigger a force read for all the entrys that just subscribed.
+    await ble_coordinator.force_data_update()
 
     return True
 
@@ -121,6 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
 async def async_unload_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Unload a config entry."""
     await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    await entry.runtime_data._data_coordinator.shutdown()  # private, meh.
+    await entry.runtime_data.remove_listeners()
+    await entry.runtime_data.ble_coordinator.shutdown()  # private, meh.
 
     return True
