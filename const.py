@@ -6,6 +6,7 @@ from logging import Logger, getLogger
 from .src.gatt import Gatt, Service, Characteristic, Property, ReadAction
 from .src.ble_service_info_decrypter import BleServiceInfoDecrypter
 from .src.taco_gatt_read_transform import (
+    read_network_device_index_transform,
     read_network_thermostat_input_status_transform,
     read_network_zone_count_transform,
     read_network_zone_status_transform,
@@ -18,6 +19,7 @@ from .src.taco_gatt_read_transform import (
 from .src.taco_gatt_write_transform import (
     write_password_transform,
     write_network_diagnostic_mode_transform,
+    write_network_device_index_transform,
 )
 
 LOGGER: Logger = getLogger(__package__)
@@ -100,6 +102,9 @@ _TACO_SERVICES = [
                 uuid="1b423159-e0eb-4d9e-a86b-dcabcc3565b9",
                 name="networkDeviceIndex",
                 properties=[Property.READ, Property.WRITE],
+                read_action=ReadAction.INDEX,
+                read_transform=read_network_device_index_transform,
+                write_transform=write_network_device_index_transform,
             ),
             Characteristic(
                 uuid="1b42315c-e0eb-4d9e-a86b-dcabcc3565b9",

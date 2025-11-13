@@ -241,3 +241,12 @@ def read_network_aux2_transform(bytez: bytearray) -> ReadResult:
 
     # 1 means on means true
     return ReadResult(NETWORK_AUX2, _is_byte_match(bytez[1], 1))
+
+
+NETWORK_DEVICE_INDEX = "network_device_index"
+
+
+def read_network_device_index_transform(bytez: bytearray) -> ReadResult:
+    """Does nothing with the bytearray since we just write it back out again."""
+
+    return ReadResult(NETWORK_DEVICE_INDEX, bytez)

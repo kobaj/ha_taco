@@ -23,7 +23,7 @@ class WriteRequest:
     """A write request, will be passed to write_transform as two args."""
 
     action: str
-    extra: any
+    extra: any = None
 
 
 PROVIDE_PASSWORD = "provide_password"
@@ -77,3 +77,18 @@ def write_network_diagnostic_mode_transform(
     if action == FORCE_ZONE_ON:
         return _write_force_zone_on(extra)
     return None
+
+
+PING_NETWORK_DEVICE_INDEX = "ping_network_device_index"
+
+
+def write_network_device_index_transform(action: str, extra: any) -> bytearray | None:
+    """Does nothing with the bytearray since we just write it back out again."""
+
+    if action != PING_NETWORK_DEVICE_INDEX:
+        return None
+
+    if not extra:
+        return None
+
+    return extra
