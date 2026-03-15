@@ -176,14 +176,14 @@ class BleDataUpdateCoordinator:
                 and characteristic.read_action == ReadAction.SUBSCRIBE
             ]
 
-            poll_gatt_calls = [
-                _setup_notification_subscriptions(
-                    client, characteristic, self._consume_result
-                )
-                for characteristic in notification_gatt_characteristics
-            ]
+            async with asyncio.TaskGroup() as group:
+                for characteristic in notification_gatt_characteristics:
+                    group.create_task(
+                        _setup_notification_subscriptions(
+                            client, characteristic, self._consume_result
+                        )
+                    )
 
-            await asyncio.gather(*poll_gatt_calls)
             await self.poll(is_first_poll=True)
         except:
             _LOGGER.exception(
@@ -213,12 +213,12 @@ class BleDataUpdateCoordinator:
                     or (characteristic.read_action == ReadAction.POLL)
                 )
             ]
-            poll_gatt_calls = [
-                _read_gatt(client, characteristic, self._consume_result)
-                for characteristic in poll_gatt_characteristics
-            ]
 
-            await asyncio.gather(*poll_gatt_calls)
+            async with asyncio.TaskGroup() as group:
+                for characteristic in poll_gatt_characteristics:
+                    group.create_task(
+                        _read_gatt(client, characteristic, self._consume_result)
+                    )
         except:
             _LOGGER.exception("Failed to poll device %s", self._ble_device.address)
             raise
