@@ -65,7 +65,7 @@ logger:
 
 This integration was written to be as modular and extensible as possible. Anything inside of the src folder not prefixed with `taco_` is 100% reusable for another project.
 
-The overall philosophy was to introduce layers of abstraction between key elements. So Home Assistant sensors don't actually know (or care) they are talking to a bluetooth device, and the same in reverse. Instead, Home Assistant will use simple concepts like read data with key `xyz`, and the bluetooth device only needs to know characteristic `abc` is providing some data. You as the developer don't need to worry about any of the complicated in low level information (eg: configuring home assistant entities, setting up bluetooth connections, etc), and instead just need to map `abc` to `xyz`.
+The overall philosophy was to introduce layers of abstraction between key elements. So Home Assistant sensors don't actually know (or care) they are talking to a bluetooth device, and the same in reverse. Instead, Home Assistant will use simple concepts like read data with key `xyz`, and the bluetooth device only needs to know characteristic `abc` is providing some data. You as the developer don't need to worry about any of the complicated low level information (eg: configuring home assistant entities, setting up bluetooth connections, etc), and instead just need to map `abc` to `xyz`.
 
 #### Adding a new read operation
 
