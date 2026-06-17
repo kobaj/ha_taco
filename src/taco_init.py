@@ -12,6 +12,7 @@ from .taco_gatt_write_transform import (
     REQUEST_FORCE_ZONE_STATUS,
     WriteRequest,
     FORCE_ZONE_ON,
+    MaskedString
 )
 from .taco_config_entry import TacoRuntimeData
 from .taco_gatt_read_transform import ZoneInfo
@@ -21,19 +22,21 @@ from .ble_data_update_coordinator import BleDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-async def _validate_password(password, ble_coordinator: BleDataUpdateCoordinator):
+async def _validate_password(password: MaskedString | None, ble_coordinator: BleDataUpdateCoordinator):
     """Checks the password is legal and actually correct for this particular device."""
 
-    if password and len(password) > 20:
+    if not password or not password.value:
+        return
+
+    if len(password.value) > 20:
         raise ConfigEntryAuthFailed(
             "Cannot have a Taco password more than 20 characters."
         )
 
-    if password:
-        try:
-            await ble_coordinator.write([WriteRequest(PROVIDE_PASSWORD, password)])
-        except Exception as err:
-            raise ConfigEntryAuthFailed(err) from err
+    try:
+        await ble_coordinator.write([WriteRequest(PROVIDE_PASSWORD, extra=password)])
+    except Exception as err:
+        raise ConfigEntryAuthFailed(err) from err
 
 
 async def send_initial_write_requests(runtime_data: TacoRuntimeData):
@@ -74,7 +77,7 @@ async def _send_write_requests(
     _LOGGER.info(
         "Sending out write requests (%s): %s",
         len(actions),
-        [a for a in actions if a.action != PROVIDE_PASSWORD],
+        actions,
     )
     await ble_coordinator.write(actions)
 

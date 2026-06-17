@@ -22,20 +22,32 @@ _LOGGER = logging.getLogger(__name__)
 class WriteRequest:
     """A write request, will be passed to write_transform as two args."""
 
+    # The actual action to take
     action: str
+
+    # Variables that will be sent along with the action
     extra: any = None
 
 
 PROVIDE_PASSWORD = "provide_password"
 
 
-def write_password_transform(action: str, password: str) -> bytearray | None:
+@dataclass
+class MaskedString:
+    """Holds passwords and tries to avoid printing them unnecssarily."""
+
+    value: str
+
+    def __repr__(self) -> str:
+        return "*" * len(self.value)
+
+def write_password_transform(action: str, password: MaskedString) -> bytearray | None:
     """Converts a password string to a bytearray."""
 
     if action != PROVIDE_PASSWORD:
         return None
 
-    return bytearray(password, encoding="ascii")
+    return bytearray(password.value, encoding="ascii")
 
 
 def _write_force_zone_on(zone_info: ZoneInfo) -> bytearray:
