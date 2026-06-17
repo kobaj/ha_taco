@@ -41,8 +41,7 @@ async def send_initial_write_requests(runtime_data: TacoRuntimeData):
 
     await _validate_password(runtime_data.password, runtime_data.ble_coordinator)
 
-
-def _create_write_requests(runtime_data: TacoRuntimeData) -> list[WriteRequest]:
+def _create_write_requests(runtime_data: TacoRuntimeData) -> Tuple[bool, list[WriteRequest]]:
     """The write action that should take place upon a successful loop."""
 
     zone_info = ZoneInfo(
@@ -54,9 +53,18 @@ def _create_write_requests(runtime_data: TacoRuntimeData) -> list[WriteRequest]:
         zone6=runtime_data.force_zone_on[5],
     )
 
-    return [
-        WriteRequest(PROVIDE_PASSWORD, runtime_data.password),
-        WriteRequest(FORCE_ZONE_ON, zone_info),
+    keep_alive = (
+        zone_info.zone1
+        or zone_info.zone2
+        or zone_info.zone3
+        or zone_info.zone4
+        or zone_info.zone5
+        or zone_info.zone6
+    )
+
+    return keep_alive, [
+        WriteRequest(PROVIDE_PASSWORD, extra=runtime_data.password),
+        WriteRequest(FORCE_ZONE_ON, extra=zone_info),
     ]
 
 
@@ -84,7 +92,7 @@ async def _loop(state: dict, runtime_data: TacoRuntimeData):
 
     success = False
 
-    actions = _create_write_requests(runtime_data)
+    keep_alive, actions = _create_write_requests(runtime_data)
 
     if not actions:
         return
@@ -92,6 +100,9 @@ async def _loop(state: dict, runtime_data: TacoRuntimeData):
     previous_actions = state.get(_PREVIOUS_ACTIONS_KEY, [])
     if previous_actions != actions:
         await _send_write_requests(actions, runtime_data.ble_coordinator)
+        success = True
+
+    if not keep_alive:
         success = True
 
     # The Taco times out after 5 minutes, so set this to be just a bit before.
