@@ -37,7 +37,7 @@ class _GattReadResult(Protocol):
 
 
 @dataclass
-class LocalGattReadResult:
+class _LocalGattReadResult:
     """Implementation for gatt read result."""
 
     key: str
@@ -147,9 +147,10 @@ class BleDataUpdateCoordinator:
             if not self._is_connected():
                 try:
                     self._client = await establish_connection(
-                        BleakClientWithServiceCache,
-                        self._ble_device,
-                        self._ble_device.address,
+                        client_class = BleakClientWithServiceCache,
+                        device = self._ble_device,
+                        name = self._ble_device.address,
+                        disconnected_callback = self.force_data_clear
                     )
                 except:
                     self.force_data_clear()
@@ -164,18 +165,23 @@ class BleDataUpdateCoordinator:
     @callback
     async def setup(self) -> None:
         """Initialize a client and establish subscriptions."""
+        if self._is_connected():
+            return
+
         await self.force_data_update()
 
         client = await self._make_client()
-        try:
-            notification_gatt_characteristics = [
+
+        # These are characteristics that we cannot read directly,
+        # instead we get notifications whenever their value changes.
+        notification_gatt_characteristics = [
                 characteristic
                 for service in self._gatt.services
                 for characteristic in service.characteristics
                 if Property.NOTIFY in characteristic.properties
                 and characteristic.read_action == ReadAction.SUBSCRIBE
             ]
-
+        try:
             async with asyncio.TaskGroup() as group:
                 for characteristic in notification_gatt_characteristics:
                     group.create_task(
@@ -183,37 +189,52 @@ class BleDataUpdateCoordinator:
                             client, characteristic, self._consume_result
                         )
                     )
-
-            await self.poll(is_first_poll=True)
         except:
             _LOGGER.exception(
                 "Failed to setup notifications for device %s", self._ble_device.address
             )
             raise
 
-    @callback
-    async def poll(self, is_first_poll: bool = False) -> None:
-        """Poll the device."""
-        _LOGGER.debug("Polling for new data for device %s", self._ble_device.address)
-
-        if not is_first_poll and not self._is_connected():
-            # At some point we lost connection, so re-setup our notifications
-            await self.setup()
-            return
-
-        client = await self._make_client()
-        try:
-            poll_gatt_characteristics = [
+        # These are characteristics that we are expected to read just once
+        # when we first connect to the device.
+        index_gatt_characteristics = [
                 characteristic
                 for service in self._gatt.services
                 for characteristic in service.characteristics
                 if Property.READ in characteristic.properties
-                and (
-                    (characteristic.read_action != ReadAction.NOOP and is_first_poll)
-                    or (characteristic.read_action == ReadAction.POLL)
-                )
+                and characteristic.read_action == ReadAction.INDEX
+            ]
+        try:
+            async with asyncio.TaskGroup() as group:
+                for characteristic in index_gatt_characteristics:
+                    group.create_task(
+                        _read_gatt(client, characteristic, self._consume_result)
+                    )
+        except:
+            _LOGGER.exception("Failed to index device %s", self._ble_device.address)
+            raise
+
+    @callback
+    async def poll(self) -> dict[str, any]:
+        """Poll the device."""
+        _LOGGER.debug("Polling for new data for device %s", self._ble_device.address)
+
+        if not self._is_connected():
+            # At some point we lost connection, so re-setup our notifications
+            await self.setup()
+
+        client = await self._make_client()
+
+        # These are characteristics we should constantly request new updates for.
+        poll_gatt_characteristics = [
+                characteristic
+                for service in self._gatt.services
+                for characteristic in service.characteristics
+                if Property.READ in characteristic.properties
+                and characteristic.read_action == ReadAction.POLL
             ]
 
+        try:
             async with asyncio.TaskGroup() as group:
                 for characteristic in poll_gatt_characteristics:
                     group.create_task(
@@ -260,7 +281,7 @@ class BleDataUpdateCoordinator:
     async def force_data_update(self) -> None:
         """Set a timestamp so that home assistant thinks there is new data."""
         await self._consume_result(
-            LocalGattReadResult("setup_timestamp", datetime.now())
+            _LocalGattReadResult("setup_timestamp", datetime.now())
         )
 
     async def force_data_clear(self) -> None:
