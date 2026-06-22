@@ -61,7 +61,23 @@ logger:
     custom_components.ha_taco: debug
 ```
 
-## Development Architecture
+## Development
+
+The best way I've found to edit and work on files is just to scp them between my local machine and my home assistant box
+
+To get files from my local box to home assistant:
+
+```
+scp -r /home/kobaj/windir/Workspace/Code/ha_taco/* root@192.168.1.24:/root/config/custom_components/ha_taco/
+```
+
+To get files from home assistant to my local box:
+
+```
+scp -r root@192.168.1.24:/root/config/custom_components/ha_taco/* /home/kobaj/windir/Workspace/Code/ha_taco/
+```
+
+#### Architecture
 
 This integration was written to be as modular and extensible as possible. Anything inside of the src folder not prefixed with `taco_` is 100% reusable for another project.
 

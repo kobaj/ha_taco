@@ -29,9 +29,6 @@ class WriteRequest:
     extra: any = None
 
 
-PROVIDE_PASSWORD = "provide_password"
-
-
 @dataclass
 class MaskedString:
     """Holds passwords and tries to avoid printing them unnecssarily."""
@@ -40,6 +37,10 @@ class MaskedString:
 
     def __repr__(self) -> str:
         return "*" * len(self.value)
+
+
+PROVIDE_PASSWORD = "provide_password"
+
 
 def write_password_transform(action: str, password: MaskedString) -> bytearray | None:
     """Converts a password string to a bytearray."""

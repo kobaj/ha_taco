@@ -13,7 +13,7 @@ class ReadAction(IntEnum):
 
     UNKNOWN = 0
 
-    NOOP = 1  # Do nothing
+    NOOP = 1  # Do nothing, same as unknown
     INDEX = 2  # Query once when first connected
     POLL = 3  # Query regularly on a steady interval
     SUBSCRIBE = 4  # Subscribe to notifications
