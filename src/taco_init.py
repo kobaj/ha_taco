@@ -4,23 +4,20 @@ from datetime import datetime, timedelta
 import logging
 
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.exceptions import (ConfigEntryAuthFailed, ConfigEntryNotReady)
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.core import HomeAssistant
+from homeassistant.components.persistent_notification import async_create
 
 from .taco_gatt_write_transform import (
     PROVIDE_PASSWORD,
     PING_NETWORK_DEVICE_INDEX,
     WriteRequest,
     FORCE_ZONE_ON,
-    MaskedString
+    MaskedString,
 )
 from .taco_config_entry import TacoRuntimeData
-from .taco_gatt_read_transform import (
-    ZoneInfo,
-    NETWORK_DEVICE_INDEX
-)
+from .taco_gatt_read_transform import ZoneInfo, NETWORK_DEVICE_INDEX
 from .ble_data_update_coordinator import BleDataUpdateCoordinator
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,16 +28,22 @@ async def _validate_ping(ble_coordinator: BleDataUpdateCoordinator):
         results = await ble_coordinator.poll()
         network_device_index = results.get(NETWORK_DEVICE_INDEX)
         if network_device_index is None:
-            raise Exception("Could not get network device index, is the device online and connected?")
+            raise Exception(
+                "Could not get network device index, is the device online and connected?"
+            )
 
         # In theory we should be able to make this write request prior to sending the password
         # Since it is just a ping. However, if a bug report comes in then we may need to remove the write.
-        await ble_coordinator.write([WriteRequest(PING_NETWORK_DEVICE_INDEX, extra=network_device_index)])
+        await ble_coordinator.write(
+            [WriteRequest(PING_NETWORK_DEVICE_INDEX, extra=network_device_index)]
+        )
     except Exception as err:
         raise ConfigEntryNotReady(err) from err
 
 
-async def _validate_password(password: MaskedString | None, ble_coordinator: BleDataUpdateCoordinator):
+async def _validate_password(
+    password: MaskedString | None, ble_coordinator: BleDataUpdateCoordinator
+):
     """Checks the password is legal and actually correct for this particular device."""
 
     if not password or not password.value:
@@ -63,7 +66,10 @@ async def send_initial_write_requests(runtime_data: TacoRuntimeData):
     await _validate_ping(runtime_data.ble_coordinator)
     await _validate_password(runtime_data.password, runtime_data.ble_coordinator)
 
-def _create_write_requests(runtime_data: TacoRuntimeData) -> tuple[bool, list[WriteRequest]]:
+
+def _create_write_requests(
+    runtime_data: TacoRuntimeData,
+) -> tuple[bool, list[WriteRequest]]:
     """The write action that should take place upon a successful loop."""
 
     zone_info = ZoneInfo(

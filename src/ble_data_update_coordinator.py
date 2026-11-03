@@ -147,10 +147,10 @@ class BleDataUpdateCoordinator:
             if not self._is_connected():
                 try:
                     self._client = await establish_connection(
-                        client_class = BleakClientWithServiceCache,
-                        device = self._ble_device,
-                        name = self._ble_device.address,
-                        disconnected_callback = self.force_data_clear
+                        client_class=BleakClientWithServiceCache,
+                        device=self._ble_device,
+                        name=self._ble_device.address,
+                        disconnected_callback=self.force_data_clear,
                     )
                 except:
                     self.force_data_clear()
@@ -175,12 +175,12 @@ class BleDataUpdateCoordinator:
         # These are characteristics that we cannot read directly,
         # instead we get notifications whenever their value changes.
         notification_gatt_characteristics = [
-                characteristic
-                for service in self._gatt.services
-                for characteristic in service.characteristics
-                if Property.NOTIFY in characteristic.properties
-                and characteristic.read_action == ReadAction.SUBSCRIBE
-            ]
+            characteristic
+            for service in self._gatt.services
+            for characteristic in service.characteristics
+            if Property.NOTIFY in characteristic.properties
+            and characteristic.read_action == ReadAction.SUBSCRIBE
+        ]
         try:
             async with asyncio.TaskGroup() as group:
                 for characteristic in notification_gatt_characteristics:
