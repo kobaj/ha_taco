@@ -304,7 +304,7 @@ class BleDataUpdateCoordinator:
             _LocalGattReadResult("setup_timestamp", datetime.now())
         )
 
-    async def force_data_clear(self) -> None:
+    async def force_data_clear(self, *args) -> None:
         """Remove all result data."""
         async with self._results_lock:
             self._results = {}
