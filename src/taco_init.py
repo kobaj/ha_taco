@@ -72,6 +72,10 @@ def _create_write_requests(
 ) -> tuple[bool, list[WriteRequest]]:
     """The write action that should take place upon a successful loop."""
 
+    password = runtime_data.password
+    if not password or not password.value:
+        return False, []
+
     zone_info = ZoneInfo(
         zone1=runtime_data.force_zone_on[0],
         zone2=runtime_data.force_zone_on[1],
@@ -91,7 +95,7 @@ def _create_write_requests(
     )
 
     return keep_alive, [
-        WriteRequest(PROVIDE_PASSWORD, extra=runtime_data.password),
+        WriteRequest(PROVIDE_PASSWORD, extra=password),
         WriteRequest(FORCE_ZONE_ON, extra=zone_info),
     ]
 
