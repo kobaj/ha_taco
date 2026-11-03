@@ -168,6 +168,8 @@ class BleDataUpdateCoordinator:
         if self._is_connected():
             return
 
+        _LOGGER.debug("Running setup for %s", self._ble_device.address)
+
         await self.force_data_update()
 
         client = await self._make_client()
@@ -182,6 +184,11 @@ class BleDataUpdateCoordinator:
             and characteristic.read_action == ReadAction.SUBSCRIBE
         ]
         try:
+            _LOGGER.debug(
+                "Setting up subscriptions %s gatt characteristics for device %s",
+                notification_gatt_characteristics,
+                self._ble_device.address,
+            )
             async with asyncio.TaskGroup() as group:
                 for characteristic in notification_gatt_characteristics:
                     group.create_task(
@@ -198,13 +205,21 @@ class BleDataUpdateCoordinator:
         # These are characteristics that we are expected to read just once
         # when we first connect to the device.
         index_gatt_characteristics = [
-                characteristic
-                for service in self._gatt.services
-                for characteristic in service.characteristics
-                if Property.READ in characteristic.properties
-                and characteristic.read_action == ReadAction.INDEX
-            ]
+            characteristic
+            for service in self._gatt.services
+            for characteristic in service.characteristics
+            if Property.READ in characteristic.properties
+            and (
+                characteristic.read_action == ReadAction.INDEX
+                or characteristic.read_action == ReadAction.SUBSCRIBE
+            )
+        ]
         try:
+            _LOGGER.debug(
+                "Setting up index %s gatt characteristics for device %s",
+                index_gatt_characteristics,
+                self._ble_device.address,
+            )
             async with asyncio.TaskGroup() as group:
                 for characteristic in index_gatt_characteristics:
                     group.create_task(
@@ -227,14 +242,19 @@ class BleDataUpdateCoordinator:
 
         # These are characteristics we should constantly request new updates for.
         poll_gatt_characteristics = [
-                characteristic
-                for service in self._gatt.services
-                for characteristic in service.characteristics
-                if Property.READ in characteristic.properties
-                and characteristic.read_action == ReadAction.POLL
-            ]
+            characteristic
+            for service in self._gatt.services
+            for characteristic in service.characteristics
+            if Property.READ in characteristic.properties
+            and characteristic.read_action == ReadAction.POLL
+        ]
 
         try:
+            _LOGGER.debug(
+                "Polling %s gatt characteristics for device %s",
+                poll_gatt_characteristics,
+                self._ble_device.address,
+            )
             async with asyncio.TaskGroup() as group:
                 for characteristic in poll_gatt_characteristics:
                     group.create_task(
