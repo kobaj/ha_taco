@@ -152,18 +152,35 @@ async def setup_write_loop(hass: HomeAssistant, runtime_data: TacoRuntimeData):
     """Sets up the loop(s) that write data back to the device."""
 
     state = {}
+    errors = []
+    callback = None
 
     # This write loop will send out an initial set of messages when the
     # home assistant integration initially boots. So that makes the Taco
     # match our assumptions and expectations with state.
 
     async def _stateless_loop(_time):
-        await _loop(state, runtime_data)
+        try:
+            await _loop(state, runtime_data)
+            errors.clear()
+        except Exception as err:
+            errors.append(err)
+            if len(errors) == 3:
+                callback()  # Stop polling
+                message = "Multiple failures in ha_taco write loop, this usually means an authentication issue. Try setting the password and then restart the integration."
+                async_create(
+                    hass,
+                    title="Taco Integration Error",
+                    message=message,
+                    notification_id="ha_taco_sync_error",
+                )
+                raise ExceptionGroup(message, errors)
 
-    return async_track_time_interval(
+    callback = async_track_time_interval(
         hass,
         _stateless_loop,
         # Don't change this, we need it to be relatively fast
         # If you want to adjust things, adjust inside of _loop.
         timedelta(seconds=1),
     )
+    return callback
