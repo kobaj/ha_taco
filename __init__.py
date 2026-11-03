@@ -21,7 +21,6 @@ from .src.ble_config_flow import BLE_CONF_DEVICE_ADDRESS
 from .const import DOMAIN, taco_gatt
 from .config_flow import CONF_TACO_DEVICE_PASSWORD
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -92,8 +91,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool
 
 async def async_unload_entry(hass: HomeAssistant, entry: TacoConfigEntry) -> bool:
     """Unload a config entry."""
-    await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    await entry.runtime_data.remove_listeners()
-    await entry.runtime_data.ble_coordinator.shutdown()  # private, meh.
+    if hass.config_entries.async_unload_platforms is not None:
+        await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if entry.runtime_data.remove_listeners is not None:
+        entry.runtime_data.remove_listeners()
+    if entry.runtime_data.ble_coordinator.shutdown is not None:
+        await entry.runtime_data.ble_coordinator.shutdown()  # private, meh.
 
     return True
